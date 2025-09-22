@@ -42,6 +42,7 @@ jobs:
           format: 'table'
           severity: 'CRITICAL'
           exit-code: '1'
+          skip-dirs: '.git,node_modules,__pycache__'
 
   # Job 2: Build the Docker image and scan it for vulnerabilities
   build-and-scan-image:
@@ -62,7 +63,7 @@ jobs:
         with:
           context: .
           load: true
-          tags: my-grocery-app:latest
+          tags: israeli-budget-app:latest
           push: false 
 
       # --- NEW STEP: Scan the newly built Docker image ---
@@ -70,7 +71,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
-          image-ref: 'my-grocery-app:latest'
+          image-ref: 'israeli-budget-app:latest'
           ignore-unfixed: true
           format: 'table'
           severity: 'CRITICAL'
