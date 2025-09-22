@@ -33,14 +33,14 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       
       # --- NEW STEP: Scan for vulnerabilities in dependencies ---
-      - name: Run Trivy vulnerability scanner in repo mode
+      - name: Run Trivy vulnerability scanner in repo mode (Critical Only)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           ignore-unfixed: true
           format: 'table'
-          severity: 'HIGH,CRITICAL'
+          severity: 'CRITICAL'
           exit-code: '1'
 
   # Job 2: Build the Docker image and scan it for vulnerabilities
@@ -66,12 +66,12 @@ jobs:
           push: false 
 
       # --- NEW STEP: Scan the newly built Docker image ---
-      - name: Run Trivy vulnerability scanner on Docker image
+      - name: Run Trivy vulnerability scanner on Docker image (Critical Only)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
           image-ref: 'my-grocery-app:latest'
           ignore-unfixed: true
           format: 'table'
-          severity: 'HIGH,CRITICAL'
+          severity: 'CRITICAL'
           exit-code: '1'

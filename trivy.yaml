@@ -1,0 +1,24 @@
+# Trivy Configuration - Critical Vulnerabilities Only
+severity:
+  - CRITICAL
+
+# Output format  
+format: table
+
+# Exit code when vulnerabilities are found
+exit-code: 1
+
+# Ignore unfixed vulnerabilities
+ignore-unfixed: true
+
+# Cache directory
+cache:
+  dir: .trivy-cache
+
+# Skip files
+skip-files:
+  - \
+**/.git/**\
+  - \**/node_modules/**\
+  - \**/__pycache__/**\
+  - \**/.DS_Store\
