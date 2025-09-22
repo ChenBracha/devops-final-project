@@ -1,81 +1,177 @@
-# Flask Grocery List API
+# Budget App with Google OAuth
 
-[![CI Pipeline with Security Scans](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/actions/workflows/ci.yml)
+A family budget management application built with Flask, featuring Google OAuth authentication and JWT-based API access.
 
-This project is a simple yet robust RESTful API for managing grocery lists, built with Python (Flask) and PostgreSQL. The entire application is containerized using Docker and is designed with a full DevOps lifecycle in mind, including Continuous Integration and Security Scanning with GitHub Actions.
+## Features
 
----
-## Tech Stack & Architecture
+- 🔐 **Google OAuth Authentication** - Sign in with your Google account
+- 👨‍👩‍👧‍👦 **Family Budget Sharing** - Share budgets with family members
+- 📊 **Category Management** - Create and manage expense categories
+- 🎯 **Budget Tracking** - Set monthly budgets and track spending
+- 🔒 **Secure API** - JWT-protected REST API endpoints
 
-This project uses a modern, container-based architecture.
+## Quick Start
 
+### 1. Google OAuth Setup
 
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
+5. Set the application type to "Web application"
+6. Add authorized redirect URIs:
+   - `http://localhost:8888/auth/google/callback`
+   - `http://127.0.0.1:8888/auth/google/callback`
+7. Copy the Client ID and Client Secret
 
-* **Backend**: **Python 3.11** with the **Flask** micro-framework.
-* **WSGI Server**: **Gunicorn** to serve the Flask application.
-* **Reverse Proxy**: **Nginx** to handle incoming HTTP requests and forward API calls.
-* **Database**: **PostgreSQL** for data persistence.
-* **Containerization**: **Docker** and **Docker Compose** to build and run the entire application stack locally.
-* **CI/CD**: **GitHub Actions** for automated testing, linting, and security scanning.
-* **Security**: **Trivy** for vulnerability scanning of dependencies and the final Docker image.
+### 2. Environment Configuration
 
----
-## Getting Started
+Create a `.env` file in the project root:
 
-Follow these instructions to get the project running on your local machine.
+```bash
+# Database Configuration
+DATABASE_URL=postgresql+psycopg2://app:app@db:5432/app
+POSTGRES_DB=app
+POSTGRES_USER=app
+POSTGRES_PASSWORD=app
 
-## Prerequisites
+# JWT Configuration
+JWT_SECRET_KEY=your-jwt-secret-key-change-me-in-production
 
-You must have the following software installed:
-* [Docker](https://www.docker.com/get-started)
-* [Docker Compose](https://docs.docker.com/compose/install/)
+# Flask Session Secret
+SECRET_KEY=your-flask-secret-key-change-me-in-production
 
-## Installation & Running
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git)
-    cd YOUR_REPOSITORY
-    ```
+# Application Configuration
+FLASK_ENV=development
+FLASK_DEBUG=1
+```
 
-2.  **Create the environment file:**
-    Create a file named `.env` in the project root. This file holds the database credentials. **It should not be committed to Git.**
-    ```.env
-    POSTGRES_DB=mydb
-    POSTGRES_USER=myuser
-    POSTGRES_PASSWORD=mypassword
-    ```
+### 3. Run the Application
 
-3.  **Build and run the application:**
-    Use Docker Compose to build the images and start the containers.
-    ```bash
-    docker-compose up --build
-    ```
-    The API will be accessible at `http://localhost:8080`.
+```bash
+# Build and start the services
+docker-compose up --build
 
----
+# The application will be available at:
+# http://localhost:8888
+```
+
+## Usage
+
+### Authentication
+
+1. **Google OAuth**: Click "Continue with Google" on the login page
+2. **Email/Password**: Use the traditional login form (for existing users)
+
+### API Access
+
+After authentication, you'll receive a JWT token that's automatically stored in localStorage. Use this token to access protected API endpoints:
+
+```bash
+# Get categories
+curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8888/api/categories
+
+# Create a category
+curl -X POST -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "Groceries", "monthly_budget": 500}' \
+     http://localhost:8888/api/categories
+```
+
 ## API Endpoints
 
-The following endpoints are available to interact with the API.
+### Authentication
+- `GET /login` - Login page with Google OAuth
+- `GET /auth/google` - Initiate Google OAuth flow
+- `GET /auth/google/callback` - OAuth callback handler
+- `GET /auth/logout` - Logout and clear session
+- `POST /api/auth/login` - Email/password login
+- `POST /api/auth/register` - User registration
 
-| Method | Endpoint                             | Description                       | Example `curl` Command                                                                                   |
-| :----- | :----------------------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/lists/<list_id>`               | Get a specific list and its items | `curl http://localhost:8080/api/lists/1`                                                                   |
-| `POST`   | `/api/lists`                         | Create a new grocery list         | `curl -X POST -H "Content-Type: application/json" -d '{"list_name": "Weekend Party"}' http://localhost:8080/api/lists` |
-| `DELETE` | `/api/lists/<list_id>`               | Delete a list                     | `curl -X DELETE http://localhost:8080/api/lists/1`                                                         |
-| `POST`   | `/api/lists/<list_id>/items`         | Add an item to a specific list    | `curl -X POST -H "Content-Type: application/json" -d '{"item_name": "Chips"}' http://localhost:8080/api/lists/1/items` |
+### Protected Endpoints
+- `GET /dashboard` - User dashboard
+- `GET /api/categories` - List categories
+- `POST /api/categories` - Create category
+- `GET /api/health` - Health check
 
----
-## DevOps & CI/CD
+## Development
 
-This project includes a CI pipeline configured in `.github/workflows/ci.yml`. The pipeline is triggered on every push or pull request to the `main` branch and performs the following jobs:
+### Project Structure
 
-1.  **Lint and Scan Repository**:
-    * Lints the Python code using **Flake8**.
-    * Scans the filesystem and Python dependencies for known vulnerabilities using **Trivy**.
+```
+devops-final-project/
+├── app/
+│   ├── __init__.py
+│   └── main.py          # Flask application with OAuth
+├── nginx/
+│   ├── Dockerfile
+│   └── nginx.conf
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt     # Python dependencies
+└── README.md
+```
 
-2.  **Build and Scan Docker Image**:
-    * Builds the application's Docker image.
-    * Scans the final Docker image for OS and library vulnerabilities using **Trivy**.
+### Database Schema
 
-The build will fail if the linter finds serious issues or if Trivy detects any `HIGH` or `CRITICAL` severity vulnerabilities.
+- **families** - Family groups for budget sharing
+- **users** - User accounts with Google OAuth support
+- **categories** - Expense categories with monthly budgets
+- **transactions** - Individual expense records
+
+### Security Features
+
+- JWT tokens for API authentication
+- Google OAuth 2.0 integration
+- Session state validation
+- Family-scoped data access
+- Secure password hashing (for email/password users)
+
+## Deployment
+
+The application is containerized and ready for deployment:
+
+1. **Development**: Use `docker-compose up --build`
+2. **Production**: Update environment variables and deploy containers
+
+### Environment Variables for Production
+
+Make sure to set secure values for:
+- `JWT_SECRET_KEY` - Use a strong random key
+- `SECRET_KEY` - Flask session secret
+- `GOOGLE_CLIENT_ID` - Your Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Your Google OAuth client secret
+
+## Troubleshooting
+
+### Common Issues
+
+1. **OAuth not working**: Check that redirect URIs match exactly in Google Console
+2. **Database connection**: Ensure PostgreSQL container is running
+3. **Missing environment variables**: Verify all required vars are set in `.env`
+
+### Logs
+
+```bash
+# View application logs
+docker-compose logs web
+
+# View all service logs
+docker-compose logs
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is open source and available under the MIT License.
