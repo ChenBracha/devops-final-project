@@ -5,6 +5,7 @@ flake8==7.1.0
 setuptools==78.1.1
 Flask-JWT-Extended==4.6.0
 Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.35
 Werkzeug==3.0.1
 python-dateutil==2.9.0
 google-auth==2.23.4
