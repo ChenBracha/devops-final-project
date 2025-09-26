@@ -264,89 +264,7 @@ def login_page():
                 margin-right: 12px;
             }
             
-            .divider {
-                display: flex;
-                align-items: center;
-                margin: 30px 0;
-                color: #999;
-            }
-            
-            .divider::before,
-            .divider::after {
-                content: '';
-                flex: 1;
-                height: 1px;
-                background: #e0e0e0;
-            }
-            
-            .divider span {
-                padding: 0 20px;
-                font-size: 0.9rem;
-            }
-            
-            .form-group {
-                margin-bottom: 20px;
-                text-align: left;
-            }
-            
-            .form-group label {
-                display: block;
-                margin-bottom: 8px;
-                color: #333;
-                font-weight: 500;
-            }
-            
-            .form-group input {
-                width: 100%;
-                padding: 12px 16px;
-                border: 2px solid #e0e0e0;
-                border-radius: 10px;
-                font-size: 1rem;
-                transition: border-color 0.3s ease;
-            }
-            
-            .form-group input:focus {
-                outline: none;
-                border-color: #667eea;
-            }
-            
-            .login-btn {
-                width: 100%;
-                padding: 12px 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border: none;
-                border-radius: 50px;
-                color: white;
-                font-size: 1rem;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                margin-bottom: 20px;
-            }
-            
-            .login-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-            }
-            
-            .register-link {
-                color: #667eea;
-                text-decoration: none;
-                font-size: 0.9rem;
-            }
-            
-            .register-link:hover {
-                text-decoration: underline;
-            }
-            
-            .error {
-                background: #fee;
-                color: #c33;
-                padding: 10px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                font-size: 0.9rem;
-            }
+
         </style>
     </head>
     <body>
@@ -365,60 +283,12 @@ def login_page():
                     </svg>
                     Continue with Google
                 </a>
-            </div>
-            
-            <div class="divider">
-                <span>or</span>
-            </div>
-            
-            <div class="auth-section">
-                <div class="section-title">Sign in with Email</div>
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required>
-                    </div>
-                    <button type="submit" class="login-btn">Sign In</button>
-                </form>
-                <a href="#" class="register-link">Don't have an account? Register here</a>
+                <div style="margin: 20px 0; color: #999; font-size: 0.9rem;">OR</div>
+                <a href="/demo" class="google-btn" style="background: #28a745; color: white; border-color: #28a745;">
+                    🚀 Skip Login (Demo Mode)
+                </a>
             </div>
         </div>
-        
-        <script>
-            document.getElementById('loginForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                
-                try {
-                    const response = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ email, password })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        localStorage.setItem('access_token', data.access_token);
-                        alert('Login successful! Token saved to localStorage.');
-                        // Redirect to dashboard or main app
-                        window.location.href = '/dashboard';
-                    } else {
-                        alert('Login failed: ' + data.error);
-                    }
-                } catch (error) {
-                    alert('Login failed: ' + error.message);
-                }
-            });
-        </script>
     </body>
     </html>
     """
@@ -465,6 +335,75 @@ def register():
     access = create_access_token(identity=email, additional_claims=token_claims(user))
     return jsonify({"access_token": access, "user_id": user.id, "family_id": fam.id}), 201
 
+@app.route("/demo")
+def demo_login():
+    """Demo mode - create a temporary session and clear any existing auth"""
+    # Clear any existing session data
+    session.clear()
+    
+    # Create or get demo user
+    demo_user = User.query.filter_by(email="demo@budgetapp.local").first()
+    if not demo_user:
+        # Create demo family first (without admin_user_id)
+        demo_family = Family(name="Demo Family")
+        db.session.add(demo_family)
+        db.session.flush()  # Get the family.id
+        
+        # Create demo user with family_id
+        demo_user = User(
+            email="demo@budgetapp.local",
+            google_id="demo_user",
+            name="Demo User",
+            picture="",
+            password_hash=None,
+            family_id=demo_family.id
+        )
+        db.session.add(demo_user)
+        db.session.flush()  # Get the user.id
+        
+        # Update family with admin_user_id
+        demo_family.admin_user_id = demo_user.id
+        db.session.commit()
+        
+        # Create default categories for demo family
+        create_default_categories()
+    
+    # Set fresh session
+    session['user_id'] = demo_user.id
+    session['family_id'] = demo_user.family_id
+    session['demo_mode'] = True  # Flag to indicate demo mode
+    
+    # Return HTML that clears localStorage and redirects
+    demo_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Demo Mode</title>
+    </head>
+    <body>
+        <div style="text-align: center; padding: 50px; font-family: Arial;">
+            <h2>🚀 Starting Demo Mode...</h2>
+            <p>Clearing previous session data...</p>
+        </div>
+        <script>
+            // Clear any existing tokens
+            localStorage.clear();
+            
+            // Set demo tokens for the budget app
+            localStorage.setItem('access_token', 'demo_token_' + Date.now());
+            localStorage.setItem('user_id', '{demo_user.id}');
+            localStorage.setItem('family_id', '{demo_user.family_id}');
+            
+            // Redirect to budget app
+            setTimeout(() => {{
+                window.location.href = '/budget';
+            }}, 1000);
+        </script>
+    </body>
+    </html>
+    """
+    return demo_html
+
 @app.route("/budget")
 def budget_app():
     budget_html = """
@@ -490,6 +429,55 @@ def budget_app():
                 text-align: center;
                 border-radius: 10px;
                 margin-bottom: 20px;
+            }
+            
+            .user-indicator {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 25px;
+                padding: 10px 15px;
+                box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 0.9rem;
+                z-index: 1000;
+                border: 1px solid #e0e0e0;
+                backdrop-filter: blur(10px);
+            }
+            
+            .user-avatar {
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                object-fit: cover;
+            }
+            
+            .demo-badge {
+                background: linear-gradient(135deg, #28a745, #20c997);
+                color: white;
+                padding: 5px 10px;
+                border-radius: 15px;
+                font-size: 0.8rem;
+                font-weight: bold;
+            }
+            
+            .oauth-info {
+                display: flex;
+                flex-direction: column;
+                line-height: 1.3;
+            }
+            
+            .oauth-name {
+                font-weight: bold;
+                color: #333;
+            }
+            
+            .oauth-email {
+                color: #666;
+                font-size: 0.8rem;
             }
             
             .container {
@@ -624,6 +612,11 @@ def budget_app():
         </style>
     </head>
     <body>
+        <!-- User Indicator -->
+        <div class="user-indicator" id="userIndicator">
+            <div class="demo-badge">Loading...</div>
+        </div>
+        
         <div class="container">
             <div class="header">
                 <h1>💰 Simple Budget App</h1>
@@ -753,6 +746,53 @@ def budget_app():
                 window.location.href = '/login';
             }
             
+            // Initialize user indicator
+            function initUserIndicator() {
+                const userIndicator = document.getElementById('userIndicator');
+                const userId = localStorage.getItem('user_id');
+                const familyId = localStorage.getItem('family_id');
+                
+                // Check if this is demo mode
+                if (token && token.startsWith('demo_token_')) {
+                    userIndicator.innerHTML = '<div class="demo-badge">🚀 Demo Mode</div>';
+                    return;
+                }
+                
+                // For OAuth users, fetch user info from session/API
+                fetch('/api/user-info', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.picture && data.name) {
+                        // OAuth user with profile
+                        userIndicator.innerHTML = `
+                            <img src="${data.picture}" alt="Profile" class="user-avatar" onerror="this.style.display='none'">
+                            <div class="oauth-info">
+                                <div class="oauth-name">${data.name}</div>
+                                <div class="oauth-email">${data.email || ''}</div>
+                            </div>
+                        `;
+                    } else {
+                        // Fallback for users without profile info
+                        userIndicator.innerHTML = `
+                            <div class="oauth-info">
+                                <div class="oauth-name">👤 User</div>
+                                <div class="oauth-email">${data.email || 'Authenticated'}</div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    // Fallback if API fails
+                    userIndicator.innerHTML = '<div class="demo-badge">👤 Logged In</div>';
+                });
+            }
+            
+            // Initialize on page load
+            initUserIndicator();
 
             
             function showForm(type) {
@@ -1687,9 +1727,17 @@ def google_callback():
         return jsonify({"error": "Google OAuth not configured"}), 500
     
     try:
-        # Verify state parameter
-        if request.args.get('state') != session.get('state'):
-            return jsonify({"error": "Invalid state parameter"}), 400
+        # Verify state parameter (only if we have a state in session)
+        request_state = request.args.get('state')
+        session_state = session.get('state')
+        
+        if session_state and request_state != session_state:
+            return jsonify({
+                "error": "Invalid state parameter", 
+                "debug": f"Expected: {session_state}, Got: {request_state}"
+            }), 400
+        elif not request_state:
+            return jsonify({"error": "Missing state parameter - please start login from beginning"}), 400
         
         # Get authorization code from Google
         authorization_code = request.args.get('code')
@@ -1928,6 +1976,24 @@ def logout():
     </html>
     """
     return logout_html
+
+# -------- User Info (protected) --------
+@app.route("/api/user-info", methods=["GET"])
+@jwt_required()
+def get_user_info():
+    current_user_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_user_email).first()
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    return jsonify({
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "picture": user.picture,
+        "google_id": user.google_id
+    }), 200
 
 # -------- Categories (protected) --------
 @app.route("/api/categories", methods=["GET"])
