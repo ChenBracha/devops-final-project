@@ -5,8 +5,9 @@ import json
 from flask import Flask, jsonify, request, redirect, url_for, session, render_template_string
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import (
-    JWTManager, create_access_token, jwt_required, get_jwt
+    JWTManager, create_access_token, jwt_required, get_jwt, get_jwt_identity
 )
+from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
@@ -37,6 +38,48 @@ GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid_configura
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
+
+# Custom authentication decorator that handles both JWT and session
+def auth_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check for session-based auth (demo mode)
+        if 'user_id' in session and 'family_id' in session:
+            # Session-based auth (demo mode)
+            return f(*args, **kwargs)
+        
+        # Check for JWT-based auth (OAuth)
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            
+            # Check if it's a demo token
+            if token.startswith('demo_token_'):
+                # Demo token - use session data
+                if 'user_id' in session and 'family_id' in session:
+                    return f(*args, **kwargs)
+                else:
+                    return jsonify({"error": "Demo session expired"}), 401
+            else:
+                # Real JWT token - use JWT validation
+                try:
+                    from flask_jwt_extended import verify_jwt_in_request
+                    verify_jwt_in_request()
+                    return f(*args, **kwargs)
+                except Exception as e:
+                    return jsonify({"error": "Invalid JWT token"}), 401
+        
+        return jsonify({"error": "Authentication required"}), 401
+    
+    return decorated_function
+
+# Helper function to get family_id from either JWT or session
+def get_current_family_id():
+    if 'family_id' in session:
+        return session['family_id']
+    else:
+        # JWT mode
+        return get_jwt()["family_id"]
 
 # ------------------ Models ------------------
 class Family(db.Model):
@@ -2024,9 +2067,9 @@ def create_category():
 
 # -------- Budget API --------
 @app.route("/api/budget/summary", methods=["GET"])
-@jwt_required()
+@auth_required
 def budget_summary():
-    fam_id = get_jwt()["family_id"]
+    fam_id = get_current_family_id()
     
     # Get all transactions for this family
     from sqlalchemy import func
@@ -2074,9 +2117,9 @@ def budget_summary():
     })
 
 @app.route("/api/budget/transaction", methods=["POST"])
-@jwt_required()
+@auth_required
 def add_transaction():
-    fam_id = get_jwt()["family_id"]
+    fam_id = get_current_family_id()
     data = request.get_json(force=True)
     
     transaction_type = data.get("type")
@@ -2151,9 +2194,9 @@ def get_categories():
     ])
 
 @app.route("/api/budget/transactions", methods=["GET"])
-@jwt_required()
+@auth_required
 def get_transactions():
-    fam_id = get_jwt()["family_id"]
+    fam_id = get_current_family_id()
     
     # Get all transactions for this family
     transactions = Transaction.query.filter_by(family_id=fam_id).order_by(Transaction.occurred_at.desc()).all()
@@ -2171,9 +2214,9 @@ def get_transactions():
     ])
 
 @app.route("/api/budget/transaction/<int:transaction_id>", methods=["DELETE"])
-@jwt_required()
+@auth_required
 def delete_transaction(transaction_id):
-    fam_id = get_jwt()["family_id"]
+    fam_id = get_current_family_id()
     
     # Find the transaction and make sure it belongs to the user's family
     transaction = Transaction.query.filter_by(id=transaction_id, family_id=fam_id).first()
