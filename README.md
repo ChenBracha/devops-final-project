@@ -28,7 +28,7 @@ A family budget management application built with Flask, featuring Google OAuth 
 
 Create a `.env` file in the project root:
 
-```bash
+    ```bash
 # Database Configuration
 DATABASE_URL=postgresql+psycopg2://app:app@db:5432/app
 POSTGRES_DB=app
@@ -71,7 +71,7 @@ docker-compose up --build
 
 After authentication, you'll receive a JWT token that's automatically stored in localStorage. Use this token to access protected API endpoints:
 
-```bash
+    ```bash
 # Get categories
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8888/api/categories
 
