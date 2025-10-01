@@ -1,18 +1,100 @@
-# Budget App with Google OAuth
+# Israeli Budget App 💰🇮🇱
 
-A family budget management application built with Flask, featuring Google OAuth authentication and JWT-based API access.
+> A family budget management application with dual-deployment architecture (Docker Compose + Kubernetes)
 
-## Features
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Supported-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.3-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+
+A family budget management application built with Flask, featuring Google OAuth authentication, demo mode, and support for both Docker Compose and Kubernetes deployments.
+
+## ✨ Features
 
 - 🔐 **Google OAuth Authentication** - Sign in with your Google account
+- 🎭 **Demo Mode** - Try the app without registration
 - 👨‍👩‍👧‍👦 **Family Budget Sharing** - Share budgets with family members
-- 📊 **Category Management** - Create and manage expense categories
-- 🎯 **Budget Tracking** - Set monthly budgets and track spending
-- 🔒 **Secure API** - JWT-protected REST API endpoints
+- 💰 **Israeli Shekel (₪) Support** - Native currency support for Israeli users
+- 📊 **Transaction Management** - Track income, expenses, and bills
+- 📈 **Visual Analytics** - Pie charts and spending breakdowns
+- 📅 **Date Filtering** - Filter transactions by date range
+- 🗑️ **Transaction Deletion** - Edit your budget history
+- 🎨 **Modern UI** - Clean, responsive design
+- 🔒 **Secure API** - JWT + Session-based authentication
+- 🚀 **Dual Deployment** - Run on Docker Compose OR Kubernetes
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Google OAuth Setup
+### **Option 1: Use the Automated Deployment Script (Recommended)** ⭐
+
+```bash
+# Python script
+python3 deploy.py
+
+# OR Bash script
+./deploy.sh
+```
+
+The script will:
+- ✅ Check Docker Desktop status (start it if needed)
+- ✅ Let you choose Docker Compose or Kubernetes
+- ✅ Handle port conflicts automatically
+- ✅ Deploy everything with one command
+
+### **Option 2: Manual Deployment**
+
+#### Docker Compose (Port 8887)
+```bash
+docker-compose up -d
+# Access at http://localhost:8887
+```
+
+#### Kubernetes with K3d (Port 8889)
+```bash
+# Create cluster
+k3d cluster create budget-cluster --port "8889:80@loadbalancer"
+
+# Deploy
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/postgres/
+kubectl apply -f k8s/flask-app/
+kubectl apply -f k8s/nginx/
+
+# Port forward
+kubectl port-forward service/nginx-service 8889:80 -n budget-app
+# Access at http://localhost:8889
+```
+
+📚 **For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)**
+
+---
+
+## 🎯 Deployment Architecture
+
+This project supports **two deployment methods** that can run **simultaneously**:
+
+| Method | Port | URL | Best For |
+|--------|------|-----|----------|
+| 🐳 Docker Compose | 8887 | http://localhost:8887 | Quick development, testing |
+| ☸️ Kubernetes (K3d) | 8889 | http://localhost:8889 | Learning K8s, production-like setup |
+
+💡 **You can run both at the same time!** Perfect for comparing performance or learning differences.
+
+---
+
+## 📋 Prerequisites
+
+- Docker Desktop (for macOS) or Docker Engine
+- Docker Compose (for traditional deployment)
+- kubectl (for Kubernetes deployment)
+- k3d (for local Kubernetes cluster)
+- Python 3.11+ (optional, for deployment script)
+
+---
+
+## �� Configuration
+
+### 1. Google OAuth Setup (Optional)
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
@@ -20,158 +102,255 @@ A family budget management application built with Flask, featuring Google OAuth 
 4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
 5. Set the application type to "Web application"
 6. Add authorized redirect URIs:
-   - `http://localhost:8888/auth/google/callback`
-   - `http://127.0.0.1:8888/auth/google/callback`
+   - `http://localhost:8887/auth/google/callback` (Docker Compose)
+   - `http://localhost:8889/auth/google/callback` (Kubernetes)
 7. Copy the Client ID and Client Secret
 
 ### 2. Environment Configuration
 
 Create a `.env` file in the project root:
 
-    ```bash
+```bash
 # Database Configuration
-DATABASE_URL=postgresql+psycopg2://app:app@db:5432/app
+DATABASE_URL=postgresql+psycopg2://app:securepassword123@db:5432/app
 POSTGRES_DB=app
 POSTGRES_USER=app
-POSTGRES_PASSWORD=app
+POSTGRES_PASSWORD=securepassword123
 
-# JWT Configuration
-JWT_SECRET_KEY=your-jwt-secret-key-change-me-in-production
+# Flask Configuration
+SECRET_KEY=your-super-secret-key-change-this-in-production
+FLASK_ENV=development
 
-# Flask Session Secret
-SECRET_KEY=your-flask-secret-key-change-me-in-production
-
-# Google OAuth Configuration
+# Google OAuth Configuration (optional - app works without it)
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-
-# Application Configuration
-FLASK_ENV=development
-FLASK_DEBUG=1
 ```
 
-### 3. Run the Application
+> 💡 **Note**: The app works perfectly in **Demo Mode** without Google OAuth!
 
-```bash
-# Build and start the services
-docker-compose up --build
+---
 
-# The application will be available at:
-# http://localhost:8888
-```
-
-## Usage
+## 📱 Usage
 
 ### Authentication
 
-1. **Google OAuth**: Click "Continue with Google" on the login page
-2. **Email/Password**: Use the traditional login form (for existing users)
+1. **Demo Mode** (No login required):
+   - Click "Skip Login (Demo Mode)"
+   - Instant access with pre-loaded demo data
 
-### API Access
+2. **Google OAuth**:
+   - Click "Continue with Google"
+   - Sign in with your Google account
 
-After authentication, you'll receive a JWT token that's automatically stored in localStorage. Use this token to access protected API endpoints:
+### Features
 
-    ```bash
-# Get categories
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8888/api/categories
+- ✅ **Add Income** - Track salary and other income
+- ✅ **Add Expenses** - Record spending with categories
+- ✅ **Add Bills** - Track recurring bills
+- ✅ **View History** - See all transactions with filtering
+- ✅ **Charts** - Visual breakdown of expenses by category
+- ✅ **Export CSV** - Download transaction history
 
-# Create a category
-curl -X POST -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{"name": "Groceries", "monthly_budget": 500}' \
-     http://localhost:8888/api/categories
-```
+---
 
-## API Endpoints
-
-### Authentication
-- `GET /login` - Login page with Google OAuth
-- `GET /auth/google` - Initiate Google OAuth flow
-- `GET /auth/google/callback` - OAuth callback handler
-- `GET /auth/logout` - Logout and clear session
-- `POST /api/auth/login` - Email/password login
-- `POST /api/auth/register` - User registration
-
-### Protected Endpoints
-- `GET /dashboard` - User dashboard
-- `GET /api/categories` - List categories
-- `POST /api/categories` - Create category
-- `GET /api/health` - Health check
-
-## Development
-
-### Project Structure
+## 🏗️ Project Structure
 
 ```
 devops-final-project/
 ├── app/
 │   ├── __init__.py
-│   └── main.py          # Flask application with OAuth
+│   └── main.py              # Flask application
+├── k8s/                     # Kubernetes manifests
+│   ├── namespace.yml
+│   ├── postgres/           # PostgreSQL deployment
+│   ├── flask-app/          # Flask app deployment
+│   └── nginx/              # Nginx deployment
 ├── nginx/
 │   ├── Dockerfile
 │   └── nginx.conf
+├── monitoring/              # Prometheus/Grafana (optional)
+├── deploy.py               # Python deployment script
+├── deploy.sh               # Bash deployment script
 ├── docker-compose.yml
 ├── Dockerfile
-├── requirements.txt     # Python dependencies
+├── requirements.txt
+├── DEPLOYMENT.md           # Detailed deployment guide
 └── README.md
 ```
 
-### Database Schema
+---
+
+## 🗄️ Database Schema
 
 - **families** - Family groups for budget sharing
-- **users** - User accounts with Google OAuth support
-- **categories** - Expense categories with monthly budgets
-- **transactions** - Individual expense records
+  - `id`, `name`, `admin_user_id`, `created_at`
+  
+- **users** - User accounts with OAuth support
+  - `id`, `email`, `password_hash`, `google_id`, `name`, `picture`, `family_id`
+  
+- **categories** - Expense categories
+  - `id`, `name`, `family_id`, `created_at`
+  
+- **transactions** - Budget transactions
+  - `id`, `amount`, `description`, `transaction_type`, `category_id`, `family_id`, `user_id`, `occurred_at`
 
-### Security Features
+---
 
-- JWT tokens for API authentication
-- Google OAuth 2.0 integration
-- Session state validation
-- Family-scoped data access
-- Secure password hashing (for email/password users)
+## 🔒 Security Features
 
-## Deployment
+- ✅ JWT tokens for API authentication
+- ✅ Google OAuth 2.0 integration
+- ✅ Session-based demo mode
+- ✅ Hybrid authentication system
+- ✅ Family-scoped data access
+- ✅ Secure password hashing
+- ✅ Kubernetes secrets management
+- ✅ Trivy security scanning in CI/CD (critical vulnerabilities only)
 
-The application is containerized and ready for deployment:
+---
 
-1. **Development**: Use `docker-compose up --build`
-2. **Production**: Update environment variables and deploy containers
+## 🔄 CI/CD Pipeline
 
-### Environment Variables for Production
+The project includes GitHub Actions workflows:
 
-Make sure to set secure values for:
-- `JWT_SECRET_KEY` - Use a strong random key
-- `SECRET_KEY` - Flask session secret
-- `GOOGLE_CLIENT_ID` - Your Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Your Google OAuth client secret
+- 🧪 **Build & Test** - Lint and test code
+- 🐳 **Docker Build** - Build and scan Docker images
+- 🔍 **Security Scan** - Trivy vulnerability scanning (critical only)
+- 📦 **Artifact Upload** - Save build artifacts
 
-## Troubleshooting
+---
 
-### Common Issues
-
-1. **OAuth not working**: Check that redirect URIs match exactly in Google Console
-2. **Database connection**: Ensure PostgreSQL container is running
-3. **Missing environment variables**: Verify all required vars are set in `.env`
-
-### Logs
+## 🧪 Testing
 
 ```bash
-# View application logs
-docker-compose logs web
+# Run unit tests (coming soon)
+pytest tests/
 
-# View all service logs
-docker-compose logs
+# Check logs
+docker-compose logs -f web
+
+# Kubernetes logs
+kubectl logs -f deployment/flask-app -n budget-app
 ```
 
-## Contributing
+---
+
+## 🛠️ Development
+
+### Running Locally
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run Flask app
+python app/main.py
+```
+
+### Hot Reload with Docker
+
+```bash
+# Mount local directory for development
+docker-compose up
+# Code changes will auto-reload
+```
+
+---
+
+## 📊 Monitoring (Optional)
+
+Add Prometheus + Grafana monitoring:
+
+```bash
+# Add to docker-compose.yml
+# See DEPLOYMENT.md for instructions
+```
+
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000
+
+---
+
+## 🐛 Troubleshooting
+
+### Port Conflicts
+```bash
+# The deployment script handles this automatically!
+# Or manually:
+docker-compose down
+pkill -f "kubectl.*port-forward"
+```
+
+### Docker Not Running
+```bash
+# macOS
+open -a Docker
+
+# Wait for Docker to start, then retry
+```
+
+### Database Issues
+```bash
+# Reset database
+docker-compose down -v
+docker-compose up -d
+```
+
+### View Logs
+```bash
+# Docker Compose
+docker-compose logs -f
+
+# Kubernetes
+kubectl get pods -n budget-app
+kubectl logs -f deployment/flask-app -n budget-app
+```
+
+---
+
+## 📚 Documentation
+
+- 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide
+- 🏗️ **Architecture Diagram** - Coming soon
+- 📝 **API Documentation** - See inline comments in `app/main.py`
+
+---
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## License
+---
+
+## 📄 License
 
 This project is open source and available under the MIT License.
+
+---
+
+## 🎓 Learning Resources
+
+- [Docker Documentation](https://docs.docker.com/)
+- [Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
+- [K3d Documentation](https://k3d.io/)
+- [Flask Documentation](https://flask.palletsprojects.com/)
+
+---
+
+## 👨‍💻 Author
+
+**Chen Bracha**
+
+---
+
+## 🌟 Show Your Support
+
+Give a ⭐️ if this project helped you learn DevOps!
+
+---
+
+**Made with ❤️ for learning DevOps and Kubernetes**
