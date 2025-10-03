@@ -13,12 +13,22 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
 import requests
+from prometheus_flask_exporter import PrometheusMetrics
 
 # Allow HTTP for local development (OAuth2 normally requires HTTPS)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # ------------------ App & Config ------------------
 app = Flask(__name__)
+
+# Initialize Prometheus metrics
+metrics = PrometheusMetrics(app)
+# Automatically tracks:
+# - Request count
+# - Request duration
+# - Request size
+# - Response size
+# Metrics available at /metrics endpoint
 
 # envs (set in .env / docker-compose)
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://app:app@db:5432/app")
