@@ -1,0 +1,99 @@
+name: Deploy to GCP GKE
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm deployment'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    name: Deploy to Google Kubernetes Engine
+    runs-on: ubuntu-latest
+    
+    # Safety check: only deploy if confirmed
+    if: github.event.inputs.confirm == 'deploy'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+      
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+            --zone=${{ secrets.GKE_ZONE }} \
+            --project=${{ secrets.GCP_PROJECT_ID }}
+      
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+      
+      - name: Deploy to GKE
+        run: |
+          echo "📦 Deploying application to GKE..."
+          
+          # Apply namespace
+          kubectl apply -f k8s/namespace.yml
+          
+          # Apply PostgreSQL (if using Cloud SQL, you might skip this)
+          # kubectl apply -f k8s/postgres/
+          
+          # Apply Flask app
+          kubectl apply -f k8s/flask-app/
+          
+          # Apply Nginx
+          kubectl apply -f k8s/nginx/
+          
+          # Apply monitoring
+          kubectl apply -f k8s/monitoring/
+          
+          echo "✅ Deployment complete!"
+      
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting for pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app=flask-app -n budget-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=nginx -n budget-app --timeout=300s
+      
+      - name: Get service status
+        run: |
+          echo "📊 Deployment Status:"
+          kubectl get pods -n budget-app
+          kubectl get services -n budget-app
+          
+          echo ""
+          echo "🌐 To access your app, get the External IP:"
+          echo "kubectl get service nginx-service -n budget-app"
+          echo ""
+          echo "Or visit: http://$(kubectl get service nginx-service -n budget-app -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'pending...')"
+      
+      - name: Deployment summary
+        run: |
+          echo "🎉 Deployment Summary"
+          echo "===================="
+          echo "Cluster: ${{ secrets.GKE_CLUSTER_NAME }}"
+          echo "Zone: ${{ secrets.GKE_ZONE }}"
+          echo "Namespace: budget-app"
+          echo ""
+          echo "Next steps:"
+          echo "1. Wait for External IP to be assigned (2-3 minutes)"
+          echo "2. Access your app via the Load Balancer IP"
+          echo "3. Monitor with: kubectl get pods -n budget-app -w"
+
