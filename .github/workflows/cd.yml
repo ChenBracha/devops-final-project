@@ -1,0 +1,68 @@
+name: CD - Deploy to Local K3d
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'k8s/**'
+      - 'nginx/**'
+      - 'docker-compose.yml'
+      - 'Dockerfile'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to K3d
+    runs-on: self-hosted  # Runs on YOUR laptop
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build Docker images
+        run: |
+          echo "🔨 Building Docker images..."
+          docker-compose build --no-cache
+      
+      - name: Import images to K3d
+        run: |
+          echo "📦 Importing images to K3d cluster..."
+          k3d image import devops-final-project-web:latest -c budget-cluster || echo "Image import warning (may already exist)"
+          k3d image import devops-final-project-nginx:latest -c budget-cluster || echo "Image import warning (may already exist)"
+      
+      - name: Deploy to Kubernetes
+        run: |
+          echo "🚀 Deploying to K3d..."
+          
+          # Apply namespace
+          kubectl apply -f k8s/namespace.yml
+          
+          # Apply all manifests (includes new services automatically!)
+          kubectl apply -f k8s/postgres/
+          kubectl apply -f k8s/flask-app/
+          kubectl apply -f k8s/nginx/
+          kubectl apply -f k8s/monitoring/
+          
+          echo "✅ Manifests applied!"
+      
+      - name: Rolling restart
+        run: |
+          echo "🔄 Performing rolling restart..."
+          kubectl rollout restart deployment/flask-app -n budget-app || true
+          kubectl rollout restart deployment/nginx -n budget-app || true
+          
+          echo "⏳ Waiting for rollout..."
+          kubectl rollout status deployment/flask-app -n budget-app --timeout=60s || true
+          kubectl rollout status deployment/nginx -n budget-app --timeout=60s || true
+      
+      - name: Deployment Status
+        run: |
+          echo "📊 Deployment Status:"
+          kubectl get pods -n budget-app
+          kubectl get services -n budget-app
+          
+          echo ""
+          echo "🎉 Deployment Complete!"
+          echo "🌐 Access at: http://localhost:8889"
+

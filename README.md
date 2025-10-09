@@ -168,7 +168,8 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 devops-final-project/
 ├── .github/workflows/      # CI/CD pipelines
-│   └── ci.yml             # Build & test
+│   ├── ci.yml             # Continuous Integration
+│   └── cd.yml             # Continuous Deployment
 ├── app/
 │   ├── __init__.py
 │   └── main.py            # Flask application
@@ -179,7 +180,8 @@ devops-final-project/
 │   ├── nginx/             # Nginx reverse proxy
 │   └── monitoring/        # Prometheus & Grafana
 ├── docs/
-│   ├── DEPLOYMENT_WORKFLOW.md      # CI/CD workflow guide
+│   ├── CD_SETUP.md                 # CD setup guide (15 min)
+│   ├── DEPLOYMENT_WORKFLOW.md      # Deployment workflow
 │   ├── KUBERNETES_ARCHITECTURE.md  # K8s components breakdown
 │   └── MONITORING.md               # Monitoring guide
 ├── nginx/
@@ -228,14 +230,21 @@ devops-final-project/
 
 ## 🔄 CI/CD Pipeline
 
-The project includes automated GitHub Actions workflow for continuous integration:
+The project includes automated GitHub Actions workflows:
 
+### Continuous Integration (CI)
 - 🧪 **Build & Test** - Lint and test code on every push
-- 🐳 **Docker Build** - Build and push Docker images
+- 🐳 **Docker Build** - Build Docker images
 - 🔍 **Security Scan** - Trivy vulnerability scanning (critical only)
 - 📦 **Artifact Upload** - Save build artifacts
 
-See `.github/workflows/ci.yml` for the complete CI pipeline configuration.
+### Continuous Deployment (CD)
+- 🚀 **Auto-Deploy** - Deploys to local K3d on push to main
+- 🔄 **Rolling Updates** - Zero-downtime deployments
+- 📦 **New Services** - Automatically detects and deploys new K8s manifests
+- 🎯 **Self-Hosted** - Runs on local machine using GitHub Actions runner
+
+**Setup:** See [`docs/CD_SETUP.md`](docs/CD_SETUP.md) for 15-minute setup guide.
 
 ---
 
@@ -344,7 +353,8 @@ kubectl logs -f deployment/flask-app -n budget-app
 ## 📚 Documentation
 
 - 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Setup guide (Docker Compose & K3d)
-- 🚀 **[DEPLOYMENT_WORKFLOW.md](docs/DEPLOYMENT_WORKFLOW.md)** - CI/CD workflow and best practices
+- 🚀 **[CD_SETUP.md](docs/CD_SETUP.md)** - Continuous Deployment setup (15 minutes)
+- 🔄 **[DEPLOYMENT_WORKFLOW.md](docs/DEPLOYMENT_WORKFLOW.md)** - CI/CD workflow and best practices
 - 🏗️ **[KUBERNETES_ARCHITECTURE.md](docs/KUBERNETES_ARCHITECTURE.md)** - Complete K8s architecture breakdown
 - 📈 **[MONITORING.md](docs/MONITORING.md)** - Monitoring setup and dashboards
 - 📝 **API Documentation** - See inline comments in `app/main.py`
