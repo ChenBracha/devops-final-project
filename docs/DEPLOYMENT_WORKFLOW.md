@@ -54,7 +54,15 @@ https://github.com/YOUR_USERNAME/devops-final-project/actions
 
 **Manual deployment to local environments**
 
-Since both Docker Compose and K3d run locally, deployment is manual. Here's the workflow:
+Since both Docker Compose and K3d run locally on your laptop, deployment is manual. 
+
+> **Note:** In a production environment, CD would be fully automated using:
+> - GitOps tools (ArgoCD, FluxCD)
+> - GitHub Actions with self-hosted runners
+> - Cloud-native CD pipelines (GCP Cloud Build, AWS CodePipeline)
+> - Deployment to remote Kubernetes clusters
+
+For local development, manual deployment is the standard practice. Here's the workflow:
 
 ### Step 1: Ensure CI Passed ✅
 ```bash
@@ -67,7 +75,13 @@ Since both Docker Compose and K3d run locally, deployment is manual. Here's the 
 git pull origin main
 ```
 
-### Step 3: Choose Deployment Method
+### Step 3: Rebuild Images (if code changed)
+```bash
+# Rebuild Docker images with latest code
+docker-compose build --no-cache
+```
+
+### Step 4: Choose Deployment Method
 
 #### Option A: Docker Compose (Quick Development)
 ```bash
