@@ -1,14 +1,13 @@
 # Israeli Budget App 💰🇮🇱
 
-> A family budget management application with multi-environment deployment (Local → K8s → Cloud)
+> A family budget management application with dual deployment architecture (Docker Compose + Kubernetes)
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Supported-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-[![GCP](https://img.shields.io/badge/GCP-Terraform-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/)
 [![Flask](https://img.shields.io/badge/Flask-3.0.3-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
-A production-ready family budget management application built with Flask, featuring Google OAuth authentication, demo mode, and **three deployment options**: Docker Compose (local dev), K3d (local K8s), and GCP/GKE (production cloud).
+A production-ready family budget management application built with Flask, featuring Google OAuth authentication, demo mode, and **dual deployment options**: Docker Compose (local dev) and K3d (local Kubernetes).
 
 ## ✨ Features
 
@@ -22,8 +21,7 @@ A production-ready family budget management application built with Flask, featur
 - 🗑️ **Transaction Deletion** - Edit your budget history
 - 🎨 **Modern UI** - Clean, responsive design
 - 🔒 **Secure API** - JWT + Session-based authentication
-- 🚀 **Triple Deployment** - Docker Compose, Local K8s (K3d), or GCP Cloud
-- ☁️ **Infrastructure as Code** - Terraform for GCP deployment
+- 🚀 **Dual Deployment** - Docker Compose and Local K8s (K3d)
 - 📊 **Monitoring** - Prometheus + Grafana observability stack
 
 ## 🚀 Quick Start
@@ -68,77 +66,43 @@ kubectl port-forward service/nginx-service 8889:80 -n budget-app
 # Access at http://localhost:8889
 ```
 
-#### GCP with Terraform (Production Cloud)
-```bash
-# See full guide in docs/GCP_DEPLOYMENT.md
-
-# 1. Configure Terraform
-cd terraform/
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your GCP project ID
-
-# 2. Deploy infrastructure (takes ~10-15 minutes)
-terraform init
-terraform apply
-
-# 3. Connect to cluster
-gcloud container clusters get-credentials budget-app-cluster \
-  --zone=us-central1-a --project=your-project-id
-
-# 4. Deploy application
-kubectl apply -f k8s/namespace.yml
-kubectl apply -f k8s/flask-app/
-kubectl apply -f k8s/nginx/
-kubectl apply -f k8s/monitoring/
-
-# 5. Get external IP
-kubectl get service nginx-service -n budget-app
-```
-
 📚 **For detailed deployment instructions:**
 - [Local Deployment Guide](DEPLOYMENT.md) - Docker Compose & K3d
-- [GCP Deployment Guide](docs/GCP_DEPLOYMENT.md) - Cloud production deployment
+- [Kubernetes Architecture](docs/KUBERNETES_ARCHITECTURE.md) - Complete K8s component breakdown
+- [K3d Nodes Comparison](docs/K3D_NODES_COMPARISON.md) - Single vs Multi-node setup
 - [Monitoring Guide](docs/MONITORING.md) - Prometheus & Grafana setup
 
 ---
 
 ## 🎯 Deployment Architecture
 
-This project supports **three deployment methods** demonstrating the full DevOps lifecycle:
+This project supports **dual deployment methods** for different use cases:
 
-| Method | Environment | URL | Best For | IaC |
-|--------|-------------|-----|----------|-----|
-| 🐳 **Docker Compose** | Local Dev | http://localhost:8887 | Quick development, testing | docker-compose.yml |
-| ☸️ **Kubernetes (K3d)** | Local K8s | http://localhost:8889 | Learning K8s, testing manifests | K8s manifests |
-| ☁️ **GCP/GKE** | Production Cloud | https://your-app.gcp | Production deployment | **Terraform** |
+| Method | Environment | URL | Best For |
+|--------|-------------|-----|----------|
+| 🐳 **Docker Compose** | Local Dev | http://localhost:8887 | Quick development, testing |
+| ☸️ **Kubernetes (K3d)** | Local K8s | http://localhost:8889 | Learning K8s, production-like setup |
 
-### 🚀 Progressive Deployment Path
+### 🚀 Deployment Workflow
 
 ```
-Development → Testing → Production
-     ↓            ↓          ↓
-Docker Compose → K3d  →  GCP/GKE
-(Localhost)   (Local)  (Cloud)
+Development → Testing
+     ↓            ↓
+Docker Compose → K3d
+(Quick & Simple) (Production-like)
 ```
 
-💡 **You can run Docker Compose + K3d simultaneously!** Perfect for comparing deployments.
+💡 **You can run Docker Compose + K3d simultaneously!** Perfect for comparing deployments on different ports.
 
 ---
 
 ## 📋 Prerequisites
 
-### For Local Deployment (Docker Compose / K3d)
 - Docker Desktop (for macOS) or Docker Engine
-- Docker Compose (for local deployment)
+- Docker Compose
 - kubectl (for Kubernetes deployment)
 - k3d (for local Kubernetes cluster)
 - Python 3.11+ (optional, for deployment script)
-
-### For Cloud Deployment (GCP)
-- Google Cloud account ([$300 free credits](https://cloud.google.com/free))
-- Terraform (`brew install terraform`)
-- Google Cloud SDK (`brew install google-cloud-sdk`)
-- kubectl (`brew install kubectl`)
 
 ---
 
@@ -208,36 +172,30 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 devops-final-project/
 ├── .github/workflows/      # CI/CD pipelines
-│   ├── ci.yml             # Build & test
-│   └── deploy-gcp.yml     # GCP deployment
+│   └── ci.yml             # Build & test
 ├── app/
 │   ├── __init__.py
 │   └── main.py            # Flask application
 ├── k8s/                   # Kubernetes manifests
 │   ├── namespace.yml
-│   ├── postgres/          # PostgreSQL (local)
+│   ├── postgres/          # PostgreSQL
 │   ├── flask-app/         # Flask app
 │   ├── nginx/             # Nginx reverse proxy
 │   └── monitoring/        # Prometheus & Grafana
-├── terraform/             # Infrastructure as Code
-│   ├── main.tf           # GKE cluster
-│   ├── database.tf       # Cloud SQL
-│   ├── variables.tf      # Configuration
-│   ├── outputs.tf        # Deployment info
-│   └── README.md         # Terraform guide
 ├── docs/
-│   ├── MONITORING.md     # Monitoring guide
-│   └── GCP_DEPLOYMENT.md # Cloud deployment guide
+│   ├── KUBERNETES_ARCHITECTURE.md  # K8s components breakdown
+│   ├── K3D_NODES_COMPARISON.md     # Single vs multi-node
+│   └── MONITORING.md               # Monitoring guide
 ├── nginx/
 │   ├── Dockerfile
 │   └── nginx.conf
-├── monitoring/            # Local monitoring config
-├── deploy.py             # Local deployment script
-├── deploy.sh             # Bash deployment script
-├── docker-compose.yml    # Local development
+├── monitoring/            # Monitoring config
+├── deploy.py             # Deployment script (Python)
+├── deploy.sh             # Deployment script (Bash)
+├── docker-compose.yml    # Docker Compose config
 ├── Dockerfile
 ├── requirements.txt
-├── DEPLOYMENT.md         # Local deployment guide
+├── DEPLOYMENT.md         # Deployment guide
 └── README.md
 ```
 
@@ -268,27 +226,21 @@ devops-final-project/
 - ✅ Family-scoped data access
 - ✅ Secure password hashing
 - ✅ Kubernetes secrets management
-- ✅ GCP IAM and service accounts
-- ✅ Private VPC networking (GCP)
-- ✅ Cloud SQL with private IP
+- ✅ Docker secrets via environment variables
 - ✅ Trivy security scanning in CI/CD (critical vulnerabilities only)
 
 ---
 
 ## 🔄 CI/CD Pipeline
 
-The project includes automated GitHub Actions workflows:
+The project includes automated GitHub Actions workflow for continuous integration:
 
-### Continuous Integration
 - 🧪 **Build & Test** - Lint and test code on every push
 - 🐳 **Docker Build** - Build and push Docker images
 - 🔍 **Security Scan** - Trivy vulnerability scanning (critical only)
 - 📦 **Artifact Upload** - Save build artifacts
 
-### Continuous Deployment
-- ☁️ **Deploy to GCP** - Automated deployment to GKE
-- 🔐 **Secrets Management** - GitHub Secrets for GCP credentials
-- 🚀 **One-click Deployment** - Manual trigger via GitHub Actions UI
+See `.github/workflows/ci.yml` for the complete CI pipeline configuration.
 
 ---
 
@@ -396,10 +348,10 @@ kubectl logs -f deployment/flask-app -n budget-app
 
 ## 📚 Documentation
 
-- 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Local deployment (Docker Compose & K3d)
-- ☁️ **[GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md)** - Cloud deployment with Terraform
-- 📊 **[MONITORING.md](docs/MONITORING.md)** - Monitoring setup and dashboards
-- 🏗️ **[terraform/README.md](terraform/README.md)** - Infrastructure as Code guide
+- 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment guide (Docker Compose & K3d)
+- 🏗️ **[KUBERNETES_ARCHITECTURE.md](docs/KUBERNETES_ARCHITECTURE.md)** - Complete K8s architecture breakdown
+- 📊 **[K3D_NODES_COMPARISON.md](docs/K3D_NODES_COMPARISON.md)** - Single vs multi-node K3d setup
+- 📈 **[MONITORING.md](docs/MONITORING.md)** - Monitoring setup and dashboards
 - 📝 **API Documentation** - See inline comments in `app/main.py`
 
 ---
@@ -425,8 +377,6 @@ This project is open source and available under the MIT License.
 - [Docker Documentation](https://docs.docker.com/)
 - [Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
 - [K3d Documentation](https://k3d.io/)
-- [Terraform Documentation](https://www.terraform.io/docs)
-- [GCP Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs)
 - [Flask Documentation](https://flask.palletsprojects.com/)
 - [Prometheus Documentation](https://prometheus.io/docs/)
 - [Grafana Documentation](https://grafana.com/docs/)
