@@ -29,11 +29,7 @@ A production-ready family budget management application built with Flask, featur
 ### **Option 1: Use the Automated Deployment Script (Recommended)** ⭐
 
 ```bash
-# Python script
 python3 deploy.py
-
-# OR Bash script
-./deploy.sh
 ```
 
 The script will:
@@ -190,8 +186,7 @@ devops-final-project/
 │   ├── Dockerfile
 │   └── nginx.conf
 ├── monitoring/            # Monitoring config
-├── deploy.py             # Deployment script (Python)
-├── deploy.sh             # Deployment script (Bash)
+├── deploy.py             # Deployment script
 ├── docker-compose.yml    # Docker Compose config
 ├── Dockerfile
 ├── requirements.txt
