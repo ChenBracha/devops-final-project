@@ -67,7 +67,8 @@ kubectl port-forward service/nginx-service 8889:80 -n budget-app
 ```
 
 📚 **For detailed deployment instructions:**
-- [Local Deployment Guide](DEPLOYMENT.md) - Docker Compose & K3d
+- [Deployment Guide](DEPLOYMENT.md) - Docker Compose & K3d setup
+- [Deployment Workflow](docs/DEPLOYMENT_WORKFLOW.md) - CI/CD workflow and best practices
 - [Kubernetes Architecture](docs/KUBERNETES_ARCHITECTURE.md) - Complete K8s component breakdown
 - [Monitoring Guide](docs/MONITORING.md) - Prometheus & Grafana setup
 
@@ -182,6 +183,7 @@ devops-final-project/
 │   ├── nginx/             # Nginx reverse proxy
 │   └── monitoring/        # Prometheus & Grafana
 ├── docs/
+│   ├── DEPLOYMENT_WORKFLOW.md      # CI/CD workflow guide
 │   ├── KUBERNETES_ARCHITECTURE.md  # K8s components breakdown
 │   └── MONITORING.md               # Monitoring guide
 ├── nginx/
@@ -346,7 +348,8 @@ kubectl logs -f deployment/flask-app -n budget-app
 
 ## 📚 Documentation
 
-- 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment guide (Docker Compose & K3d)
+- 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Setup guide (Docker Compose & K3d)
+- 🚀 **[DEPLOYMENT_WORKFLOW.md](docs/DEPLOYMENT_WORKFLOW.md)** - CI/CD workflow and best practices
 - 🏗️ **[KUBERNETES_ARCHITECTURE.md](docs/KUBERNETES_ARCHITECTURE.md)** - Complete K8s architecture breakdown
 - 📈 **[MONITORING.md](docs/MONITORING.md)** - Monitoring setup and dashboards
 - 📝 **API Documentation** - See inline comments in `app/main.py`
