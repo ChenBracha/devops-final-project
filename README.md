@@ -69,7 +69,6 @@ kubectl port-forward service/nginx-service 8889:80 -n budget-app
 📚 **For detailed deployment instructions:**
 - [Local Deployment Guide](DEPLOYMENT.md) - Docker Compose & K3d
 - [Kubernetes Architecture](docs/KUBERNETES_ARCHITECTURE.md) - Complete K8s component breakdown
-- [K3d Nodes Comparison](docs/K3D_NODES_COMPARISON.md) - Single vs Multi-node setup
 - [Monitoring Guide](docs/MONITORING.md) - Prometheus & Grafana setup
 
 ---
@@ -184,7 +183,6 @@ devops-final-project/
 │   └── monitoring/        # Prometheus & Grafana
 ├── docs/
 │   ├── KUBERNETES_ARCHITECTURE.md  # K8s components breakdown
-│   ├── K3D_NODES_COMPARISON.md     # Single vs multi-node
 │   └── MONITORING.md               # Monitoring guide
 ├── nginx/
 │   ├── Dockerfile
@@ -350,7 +348,6 @@ kubectl logs -f deployment/flask-app -n budget-app
 
 - 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment guide (Docker Compose & K3d)
 - 🏗️ **[KUBERNETES_ARCHITECTURE.md](docs/KUBERNETES_ARCHITECTURE.md)** - Complete K8s architecture breakdown
-- 📊 **[K3D_NODES_COMPARISON.md](docs/K3D_NODES_COMPARISON.md)** - Single vs multi-node K3d setup
 - 📈 **[MONITORING.md](docs/MONITORING.md)** - Monitoring setup and dashboards
 - 📝 **API Documentation** - See inline comments in `app/main.py`
 
