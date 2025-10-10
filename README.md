@@ -107,11 +107,59 @@ Docker Compose → K3d
 - ArgoCD (installed via `./setup-gitops.sh`)
 
 **Installation:**
+
+<details>
+<summary>📦 macOS</summary>
+
 ```bash
-# macOS
+# Install via Homebrew
 brew install docker kubectl k3d
 
-# Verify
+# Or download Docker Desktop
+# https://www.docker.com/products/docker-desktop
+```
+</details>
+
+<details>
+<summary>🐧 Linux (Ubuntu/Debian)</summary>
+
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Install k3d
+curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+# Logout and login for docker group to take effect
+```
+</details>
+
+<details>
+<summary>🪟 Windows</summary>
+
+```powershell
+# Install via Chocolatey
+choco install docker-desktop kubectl k3d
+
+# Or via Scoop
+scoop install kubectl k3d
+
+# Or download Docker Desktop
+# https://www.docker.com/products/docker-desktop
+
+# For k3d without package manager:
+# Download from: https://github.com/k3d-io/k3d/releases
+```
+</details>
+
+**Verify Installation:**
+```bash
 docker --version
 kubectl version --client
 k3d version
@@ -268,10 +316,19 @@ The project uses **GitOps methodology** with ArgoCD for continuous deployment:
 
 **One-command setup:**
 ```bash
+# macOS / Linux
 ./setup-gitops.sh
+
+# Windows (Git Bash or WSL2)
+bash setup-gitops.sh
 ```
 
 This script installs ArgoCD and configures everything automatically.
+
+**Platform Notes:**
+- **macOS/Linux:** Native support
+- **Windows:** Use Git Bash, WSL2, or PowerShell with bash
+- **All platforms:** Requires kubectl and k3d installed first
 
 **Manual setup:** See [`docs/GITOPS_ARGOCD.md`](docs/GITOPS_ARGOCD.md) for complete guide.
 

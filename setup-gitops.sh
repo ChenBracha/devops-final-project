@@ -3,6 +3,9 @@
 ##############################################################################
 # GitOps Setup Script with ArgoCD
 # This script sets up the complete GitOps infrastructure
+# 
+# Supported Platforms: macOS, Linux (Ubuntu/Debian)
+# For Windows: Use Git Bash or WSL2
 ##############################################################################
 
 set -e  # Exit on error
