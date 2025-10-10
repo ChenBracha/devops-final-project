@@ -94,11 +94,28 @@ Docker Compose → K3d
 
 ## 📋 Prerequisites
 
+### Core Requirements
 - Docker Desktop (for macOS) or Docker Engine
-- Docker Compose
 - kubectl (for Kubernetes deployment)
 - k3d (for local Kubernetes cluster)
-- Python 3.11+ (optional, for deployment script)
+
+### Optional
+- Docker Compose (for local development without K8s)
+- Python 3.11+ (for deployment script)
+
+### For GitOps (Installed Automatically)
+- ArgoCD (installed via `./setup-gitops.sh`)
+
+**Installation:**
+```bash
+# macOS
+brew install docker kubectl k3d
+
+# Verify
+docker --version
+kubectl version --client
+k3d version
+```
 
 ---
 
@@ -247,7 +264,16 @@ The project uses **GitOps methodology** with ArgoCD for continuous deployment:
 - 🔙 **Easy Rollback** - One-click rollback to any version
 - 🎨 **Rich UI** - Visual representation of all resources
 
-**Setup:** See [`docs/GITOPS_ARGOCD.md`](docs/GITOPS_ARGOCD.md) for complete guide.
+### 🚀 Quick Setup
+
+**One-command setup:**
+```bash
+./setup-gitops.sh
+```
+
+This script installs ArgoCD and configures everything automatically.
+
+**Manual setup:** See [`docs/GITOPS_ARGOCD.md`](docs/GITOPS_ARGOCD.md) for complete guide.
 
 ---
 

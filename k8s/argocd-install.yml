@@ -1,0 +1,15 @@
+# ArgoCD Installation
+# This file will install ArgoCD in your cluster
+# Run: kubectl apply -f k8s/argocd-install.yml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+---
+# ArgoCD Installation from official manifests
+# This is a reference - actual installation uses remote URL
+# Run this command instead:
+# kubectl create namespace argocd
+# kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
