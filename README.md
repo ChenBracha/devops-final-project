@@ -167,9 +167,10 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 ```
 devops-final-project/
-├── .github/workflows/      # CI/CD pipelines
-│   ├── ci.yml             # Continuous Integration
-│   └── cd.yml             # Continuous Deployment
+├── .github/workflows/           # CI/CD pipelines
+│   └── ci-cd-gitops.yml        # GitOps CI/CD workflow
+├── argocd/
+│   └── application.yaml         # ArgoCD app definition
 ├── app/
 │   ├── __init__.py
 │   └── main.py            # Flask application
@@ -180,7 +181,7 @@ devops-final-project/
 │   ├── nginx/             # Nginx reverse proxy
 │   └── monitoring/        # Prometheus & Grafana
 ├── docs/
-│   ├── CD_SETUP.md                 # CD setup guide (15 min)
+│   ├── GITOPS_ARGOCD.md            # GitOps + ArgoCD setup
 │   ├── DEPLOYMENT_WORKFLOW.md      # Deployment workflow
 │   ├── KUBERNETES_ARCHITECTURE.md  # K8s components breakdown
 │   └── MONITORING.md               # Monitoring guide
@@ -228,23 +229,25 @@ devops-final-project/
 
 ---
 
-## 🔄 CI/CD Pipeline
+## 🔄 CI/CD Pipeline - GitOps
 
-The project includes automated GitHub Actions workflows:
+The project uses **GitOps methodology** with ArgoCD for continuous deployment:
 
 ### Continuous Integration (CI)
 - 🧪 **Build & Test** - Lint and test code on every push
-- 🐳 **Docker Build** - Build Docker images
+- 🐳 **Docker Build** - Build and tag images with commit SHA
 - 🔍 **Security Scan** - Trivy vulnerability scanning (critical only)
-- 📦 **Artifact Upload** - Save build artifacts
+- 📦 **Push to GHCR** - GitHub Container Registry (private)
 
-### Continuous Deployment (CD)
-- 🚀 **Auto-Deploy** - Deploys to local K3d on push to main
-- 🔄 **Rolling Updates** - Zero-downtime deployments
-- 📦 **New Services** - Automatically detects and deploys new K8s manifests
-- 🎯 **Self-Hosted** - Runs on local machine using GitHub Actions runner
+### Continuous Deployment (CD) - GitOps
+- 🔄 **Pull-Based** - ArgoCD pulls updates from Git (secure)
+- 🎯 **Automated Sync** - Detects changes every 3 minutes
+- 🛡️ **Self-Healing** - Automatically fixes manual changes
+- 📊 **Drift Detection** - Monitors cluster vs Git state
+- 🔙 **Easy Rollback** - One-click rollback to any version
+- 🎨 **Rich UI** - Visual representation of all resources
 
-**Setup:** See [`docs/CD_SETUP.md`](docs/CD_SETUP.md) for 15-minute setup guide.
+**Setup:** See [`docs/GITOPS_ARGOCD.md`](docs/GITOPS_ARGOCD.md) for complete guide.
 
 ---
 
@@ -353,8 +356,7 @@ kubectl logs -f deployment/flask-app -n budget-app
 ## 📚 Documentation
 
 - 📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Setup guide (Docker Compose & K3d)
-- 🚀 **[CD_SETUP.md](docs/CD_SETUP.md)** - Continuous Deployment setup (15 minutes)
-- 🔄 **[DEPLOYMENT_WORKFLOW.md](docs/DEPLOYMENT_WORKFLOW.md)** - CI/CD workflow and best practices
+- 🔄 **[GITOPS_ARGOCD.md](docs/GITOPS_ARGOCD.md)** - GitOps with ArgoCD (complete guide)
 - 🏗️ **[KUBERNETES_ARCHITECTURE.md](docs/KUBERNETES_ARCHITECTURE.md)** - Complete K8s architecture breakdown
 - 📈 **[MONITORING.md](docs/MONITORING.md)** - Monitoring setup and dashboards
 - 📝 **API Documentation** - See inline comments in `app/main.py`
