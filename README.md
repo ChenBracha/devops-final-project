@@ -21,45 +21,44 @@ A production-ready family budget management application built with Flask, featur
 - 🗑️ **Transaction Deletion** - Edit your budget history
 - 🎨 **Modern UI** - Clean, responsive design
 - 🔒 **Secure API** - JWT + Session-based authentication
-- 🚀 **Dual Deployment** - Docker Compose and Local K8s (K3d)
+- 🚀 **GitOps Deployment** - K3d + ArgoCD for continuous deployment
 - 📊 **Monitoring** - Prometheus + Grafana observability stack
 
 ## 🚀 Quick Start
 
-### **Option 1: Use the Automated Deployment Script (Recommended)** ⭐
+### **One-Command Deployment** ⭐
 
 ```bash
 python3 deploy.py
 ```
 
 The script will:
-- ✅ Check Docker Desktop status (start it if needed)
-- ✅ Let you choose Docker Compose or Kubernetes
-- ✅ Handle port conflicts automatically
-- ✅ Deploy everything with one command
+- ✅ Check prerequisites (Docker, kubectl, k3d)
+- ✅ Create K3d cluster
+- ✅ Install ArgoCD (as pods in the cluster)
+- ✅ Deploy your application
+- ✅ Set up GitOps continuous deployment
 
-### **Option 2: Manual Deployment**
+**That's it!** Your application will be running at:
+- **Application**: http://localhost:8889
+- **ArgoCD UI**: https://localhost:8080 (after port-forward)
 
-#### Docker Compose (Port 8887)
-```bash
-docker-compose up -d
-# Access at http://localhost:8887
+### **What Gets Deployed**
+
 ```
-
-#### Kubernetes with K3d (Port 8889)
-```bash
-# Create cluster
-k3d cluster create budget-cluster --port "8889:80@loadbalancer"
-
-# Deploy
-kubectl apply -f k8s/namespace.yml
-kubectl apply -f k8s/postgres/
-kubectl apply -f k8s/flask-app/
-kubectl apply -f k8s/nginx/
-
-# Port forward
-kubectl port-forward service/nginx-service 8889:80 -n budget-app
-# Access at http://localhost:8889
+K3d Cluster
+├── ArgoCD Namespace
+│   ├── argocd-server (UI)
+│   ├── argocd-repo-server (Git sync)
+│   ├── argocd-application-controller
+│   └── argocd-redis
+│
+└── Budget-App Namespace
+    ├── flask-app (your application)
+    ├── nginx (reverse proxy)
+    ├── postgres (database)
+    ├── prometheus (monitoring)
+    └── grafana (dashboards)
 ```
 
 📚 **For detailed deployment instructions:**
@@ -72,39 +71,43 @@ kubectl port-forward service/nginx-service 8889:80 -n budget-app
 
 ## 🎯 Deployment Architecture
 
-This project supports **dual deployment methods** for different use cases:
+This project uses **Kubernetes (K3d) with GitOps** for production-grade deployment:
 
-| Method | Environment | URL | Best For |
-|--------|-------------|-----|----------|
-| 🐳 **Docker Compose** | Local Dev | http://localhost:8887 | Quick development, testing |
-| ☸️ **Kubernetes (K3d)** | Local K8s | http://localhost:8889 | Learning K8s, production-like setup |
+| Component | Description | Access |
+|-----------|-------------|--------|
+| ☸️ **K3d Cluster** | Local Kubernetes cluster | Background |
+| 🔄 **ArgoCD** | GitOps controller (runs as pods) | https://localhost:8080 |
+| 🌐 **Application** | Budget App + PostgreSQL + Nginx | http://localhost:8889 |
+| 📊 **Monitoring** | Prometheus + Grafana | Built-in |
 
 ### 🚀 Deployment Workflow
 
 ```
-Development → Testing
-     ↓            ↓
-Docker Compose → K3d
-(Quick & Simple) (Production-like)
+Run deploy.py
+     ↓
+K3d Cluster Created
+     ↓
+ArgoCD Installed (as pods)
+     ↓
+Application Deployed
+     ↓
+GitOps Ready! 🎉
 ```
 
-💡 **You can run Docker Compose + K3d simultaneously!** Perfect for comparing deployments on different ports.
+💡 **One command deployment!** ArgoCD runs as pods inside your K3d cluster.
 
 ---
 
 ## 📋 Prerequisites
 
 ### Core Requirements
-- Docker Desktop (for macOS) or Docker Engine
-- kubectl (for Kubernetes deployment)
-- k3d (for local Kubernetes cluster)
+- **Docker** - Container runtime
+- **kubectl** - Kubernetes CLI
+- **k3d** - Local Kubernetes cluster
+- **Python 3.11+** - For deployment script
 
-### Optional
-- Docker Compose (for local development without K8s)
-- Python 3.11+ (for deployment script)
-
-### For GitOps (Installed Automatically)
-- ArgoCD (installed via `./setup-gitops.sh`)
+### Installed Automatically by deploy.py
+- **ArgoCD** - GitOps controller (installed as pods in cluster)
 
 **Installation:**
 
@@ -176,9 +179,8 @@ k3d version
 3. Enable the Google+ API
 4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
 5. Set the application type to "Web application"
-6. Add authorized redirect URIs:
-   - `http://localhost:8887/auth/google/callback` (Docker Compose)
-   - `http://localhost:8889/auth/google/callback` (Kubernetes)
+6. Add authorized redirect URI:
+   - `http://localhost:8889/auth/google/callback`
 7. Copy the Client ID and Client Secret
 
 ### 2. Environment Configuration
@@ -235,11 +237,12 @@ devops-final-project/
 ├── .github/workflows/           # CI/CD pipelines
 │   └── ci-cd-gitops.yml        # GitOps CI/CD workflow
 ├── argocd/
-│   └── application.yaml         # ArgoCD app definition
+│   ├── application.yaml         # ArgoCD app definition
+│   └── argocd-install.yml      # ArgoCD installation reference
 ├── app/
 │   ├── __init__.py
-│   └── main.py            # Flask application
-├── k8s/                   # Kubernetes manifests
+│   └── main.py                 # Flask application
+├── k8s/                        # Kubernetes manifests
 │   ├── namespace.yml
 │   ├── postgres/          # PostgreSQL
 │   ├── flask-app/         # Flask app
@@ -312,25 +315,29 @@ The project uses **GitOps methodology** with ArgoCD for continuous deployment:
 - 🔙 **Easy Rollback** - One-click rollback to any version
 - 🎨 **Rich UI** - Visual representation of all resources
 
-### 🚀 Quick Setup
+### 🚀 Automatic Setup
 
-**One-command setup:**
+ArgoCD is **automatically installed** when you run `deploy.py`:
+
 ```bash
-# macOS / Linux
-./setup-gitops.sh
-
-# Windows (Git Bash or WSL2)
-bash setup-gitops.sh
+python3 deploy.py
 ```
 
-This script installs ArgoCD and configures everything automatically.
+**What happens:**
+1. K3d cluster is created
+2. ArgoCD is installed as pods in the cluster
+3. Your application is deployed via GitOps
+4. You're ready to go!
 
-**Platform Notes:**
-- **macOS/Linux:** Native support
-- **Windows:** Use Git Bash, WSL2, or PowerShell with bash
-- **All platforms:** Requires kubectl and k3d installed first
+**Access ArgoCD UI:**
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+# Open https://localhost:8080
+# Username: admin
+# Password: (shown after deployment)
+```
 
-**Manual setup:** See [`docs/GITOPS_ARGOCD.md`](docs/GITOPS_ARGOCD.md) for complete guide.
+**Manual setup details:** See [`docs/GITOPS_ARGOCD.md`](docs/GITOPS_ARGOCD.md) for complete guide.
 
 ---
 

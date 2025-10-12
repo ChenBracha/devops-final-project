@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Budget App Deployment Script
-Choose between Docker Compose or Kubernetes deployment
+Budget App Deployment Script with GitOps (ArgoCD)
+Deploys to K3d cluster with ArgoCD for continuous deployment
 """
 
 import os
@@ -13,432 +13,387 @@ from pathlib import Path
 
 def print_banner():
     """Print a nice banner for the deployment script"""
-    print("=" * 60)
-    print("🚀 BUDGET APP DEPLOYMENT SCRIPT")
-    print("=" * 60)
-    print("Choose your deployment method:")
+    print("=" * 70)
+    print("🚀 BUDGET APP - K3D + ARGOCD DEPLOYMENT")
+    print("=" * 70)
+    print("This script will:")
+    print("  1. Create a K3d cluster")
+    print("  2. Install ArgoCD (GitOps controller)")
+    print("  3. Deploy your application")
+    print("=" * 70)
     print()
 
-def check_docker_desktop():
-    """Check if Docker Desktop is running and offer to start it"""
-    # Check if docker command exists
+def check_docker():
+    """Check if Docker is running"""
     if not shutil.which('docker'):
         print("❌ Docker is not installed!")
-        print("\n📦 Please install Docker Desktop:")
-        print("   🔗 https://www.docker.com/products/docker-desktop")
-        print("\n   For macOS: Download and install Docker Desktop from the link above")
+        print("\n📦 Please install Docker:")
+        print("   macOS:   brew install docker")
+        print("   Linux:   curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh")
+        print("   Windows: choco install docker-desktop")
         return False
     
-    # Check if Docker daemon is running
     result = subprocess.run(['docker', 'ps'], capture_output=True, text=True)
     if result.returncode == 0:
         print("✅ Docker is running")
         return True
     
-    # Docker is installed but not running
-    print("⚠️  Docker is installed but not running")
-    print("\n📝 Docker Desktop is required for Kubernetes (K3d)")
-    
-    response = input("\n👉 Would you like me to start Docker Desktop? (y/n): ").strip().lower()
-    if response in ['y', 'yes']:
-        print("🚀 Starting Docker Desktop...")
-        subprocess.run(['open', '-a', 'Docker'], capture_output=True)
-        
-        print("⏳ Waiting for Docker to start (this may take 30-60 seconds)...")
-        
-        # Wait up to 90 seconds for Docker to start
-        for i in range(18):  # 18 * 5 = 90 seconds
-            time.sleep(5)
-            result = subprocess.run(['docker', 'ps'], capture_output=True, text=True)
-            if result.returncode == 0:
-                print("✅ Docker started successfully!")
-                return True
-            print(f"   Still waiting... ({(i+1)*5}s)")
-        
-        print("❌ Docker failed to start in time")
-        print("📝 Please start Docker Desktop manually and try again")
-        return False
-    else:
-        print("\n📝 Please start Docker Desktop manually:")
-        print("   1. Open Docker Desktop application")
-        print("   2. Wait for it to start")
-        print("   3. Run this script again")
-        return False
+    print("❌ Docker is not running!")
+    print("📝 Please start Docker Desktop and try again")
+    return False
 
 def check_requirements():
     """Check if required tools are installed"""
+    print("🔍 Checking prerequisites...")
+    
     requirements = {
-        'docker': 'Docker is required for both deployment methods',
-        'docker-compose': 'Docker Compose is required for option 1',
-        'kubectl': 'kubectl is required for Kubernetes deployment',
-        'k3d': 'k3d is required for local Kubernetes'
+        'kubectl': 'Kubernetes CLI',
+        'k3d': 'K3d (local Kubernetes)'
     }
     
     missing = []
     for tool, description in requirements.items():
-        try:
-            # Use shutil.which for simple existence check
-            if not shutil.which(tool):
-                missing.append((tool, description))
-        except Exception:
+        if not shutil.which(tool):
             missing.append((tool, description))
+        else:
+            print(f"✅ {tool} found")
     
-    return missing
-
-def run_command(command, description="Running command"):
-    """Run a shell command with error handling"""
-    print(f"📋 {description}...")
-    print(f"💻 Command: {command}")
-    
-    try:
-        result = subprocess.run(command, shell=True, check=True, 
-                              capture_output=False, text=True)
-        print("✅ Success!")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error: Command failed with exit code {e.returncode}")
-        return False
-
-def deploy_docker_compose():
-    """Deploy using Docker Compose"""
-    print("\n🐳 DEPLOYING WITH DOCKER COMPOSE")
-    print("-" * 40)
-    
-    # Check if .env file exists
-    if not os.path.exists('.env'):
-        print("⚠️  .env file not found!")
-        print("📝 Please create a .env file with your configuration.")
-        print("💡 You can use .env.example as a template if it exists.")
+    if missing:
+        print("\n❌ Missing requirements:")
+        for tool, description in missing:
+            print(f"   - {tool}: {description}")
+        
+        print("\n📦 Installation commands:")
+        print("   macOS:   brew install kubectl k3d")
+        print("   Linux:   See README.md for installation instructions")
+        print("   Windows: choco install kubectl k3d")
         return False
     
-    # Build and start services
-    commands = [
-        ("docker-compose down", "Stopping any existing containers"),
-        ("docker-compose build", "Building Docker images"),
-        ("docker-compose up -d", "Starting services in background"),
-        ("docker-compose ps", "Checking service status")
-    ]
-    
-    for command, description in commands:
-        if not run_command(command, description):
-            print("❌ Docker Compose deployment failed!")
-            return False
-    
-    print("\n🎉 DOCKER COMPOSE DEPLOYMENT COMPLETE!")
-    print("🌐 Your app should be available at: http://localhost:8887")
-    print("📊 To view logs: docker-compose logs -f")
-    print("🛑 To stop: docker-compose down")
     return True
 
-def deploy_kubernetes():
-    """Deploy using Kubernetes (K3d)"""
-    print("\n☸️  DEPLOYING WITH KUBERNETES (K3D)")
-    print("-" * 40)
+def run_command(command, description="Running command", check=True, capture=False):
+    """Run a shell command with error handling"""
+    print(f"📋 {description}...")
     
-    # Stop any existing services (user already confirmed)
-    print("🛑 Stopping any existing services...")
-    subprocess.run(['docker-compose', 'down'], capture_output=True)
-    
-    # Kill any kubectl port-forward processes
     try:
-        subprocess.run(['pkill', '-f', 'kubectl.*port-forward'], capture_output=True)
-        time.sleep(1)
-    except:
-        pass
-    
-    # Double-check Docker is still running
-    docker_check = subprocess.run(['docker', 'ps'], capture_output=True, text=True)
-    if docker_check.returncode != 0:
-        print("❌ Docker stopped running!")
-        print("📝 Please ensure Docker Desktop stays running and try again.")
-        return False
-    
-    print("✅ Docker is running")
+        if capture:
+            result = subprocess.run(command, shell=True, check=check, 
+                                  capture_output=True, text=True)
+            return result
+        else:
+            subprocess.run(command, shell=True, check=check)
+            print("✅ Success!")
+            return None
+    except subprocess.CalledProcessError as e:
+        if check:
+            print(f"❌ Error: Command failed")
+            if capture and e.stderr:
+                print(f"   {e.stderr}")
+        return None
+
+def setup_k3d_cluster():
+    """Create or start K3d cluster"""
+    print("\n🏗️  STEP 1: K3D CLUSTER SETUP")
+    print("-" * 70)
     
     # Check if cluster exists
     result = subprocess.run(['k3d', 'cluster', 'list'], 
                           capture_output=True, text=True)
     
-    if 'budget-cluster' not in result.stdout:
-        print("🏗️  Creating K3d cluster...")
-        if not run_command("k3d cluster create budget-cluster --port '8888:80@loadbalancer'", 
+    if 'budget-cluster' in result.stdout:
+        print("✅ K3d cluster 'budget-cluster' exists")
+        
+        # Start cluster if stopped
+        print("🔄 Ensuring cluster is running...")
+        subprocess.run(['k3d', 'cluster', 'start', 'budget-cluster'], 
+                      capture_output=True)
+        time.sleep(2)
+        
+        # Verify kubectl can connect
+        kubectl_check = subprocess.run(['kubectl', 'cluster-info'], 
+                                     capture_output=True, text=True, timeout=5)
+        if kubectl_check.returncode == 0:
+            print("✅ Cluster is running and accessible")
+            return True
+        else:
+            print("❌ Cluster exists but not accessible")
+            return False
+    else:
+        print("🏗️  Creating new K3d cluster...")
+        if not run_command("k3d cluster create budget-cluster --port '8889:80@loadbalancer'", 
                           "Creating K3d cluster"):
             return False
-    else:
-        print("✅ K3d cluster 'budget-cluster' already exists")
         
-        # Always try to start the cluster (in case it's stopped)
-        print("🔄 Ensuring cluster is running...")
-        start_result = subprocess.run(['k3d', 'cluster', 'start', 'budget-cluster'], 
-                                     capture_output=True, text=True)
+        print("⏳ Waiting for cluster to be ready...")
+        time.sleep(5)
         
-        if start_result.returncode == 0:
-            print("✅ Cluster started successfully")
-        else:
-            # Cluster might already be running, check kubectl
-            kubectl_check = subprocess.run(['kubectl', 'cluster-info'], 
-                                         capture_output=True, text=True, timeout=5)
-            if kubectl_check.returncode == 0:
-                print("✅ Cluster is running")
-            else:
-                print("❌ Failed to start cluster")
-                print(start_result.stderr)
-                return False
-    
-    # Wait a moment for cluster to be ready
-    print("⏳ Waiting for cluster to be ready...")
-    time.sleep(3)
-    
-    # Check if deployments already exist
-    check_result = subprocess.run(['kubectl', 'get', 'pods', '-n', 'budget-app'], 
-                                capture_output=True, text=True)
-    
-    if check_result.returncode == 0 and 'Running' in check_result.stdout:
-        print("✅ Kubernetes deployments already running!")
-        print("📋 Current pods:")
-        subprocess.run(['kubectl', 'get', 'pods', '-n', 'budget-app'])
-        
-        # Check if port-forward is needed
-        pf_check = subprocess.run(['pgrep', '-f', 'kubectl.*port-forward'], 
-                                capture_output=True, text=True)
-        
-        if pf_check.returncode != 0:
-            print("🔄 Starting port-forward to access the application...")
-            subprocess.Popen(['kubectl', 'port-forward', 'service/nginx-service', 
-                            '8888:80', '-n', 'budget-app'])
-            time.sleep(2)
-        
-        print("\n🎉 KUBERNETES DEPLOYMENT ALREADY COMPLETE!")
-        print("🌐 Your app should be available at: http://localhost:8888")
+        print("✅ K3d cluster created successfully")
         return True
+
+def install_argocd():
+    """Install ArgoCD in the cluster"""
+    print("\n🔄 STEP 2: ARGOCD INSTALLATION (GitOps Controller)")
+    print("-" * 70)
     
-    # Import Docker image into K3d cluster
-    print("📦 Importing Flask app image into cluster...")
-    import_result = subprocess.run(['k3d', 'image', 'import', 'devops-final-project-web:latest', 
-                                   '-c', 'budget-cluster'], 
-                                  capture_output=True, text=True)
-    if import_result.returncode == 0:
-        print("✅ Image imported successfully")
-    else:
-        print("⚠️  Image import warning (might already exist):", import_result.stderr)
+    # Check if ArgoCD namespace exists
+    result = subprocess.run(['kubectl', 'get', 'namespace', 'argocd'], 
+                          capture_output=True, text=True)
     
-    # Apply Kubernetes manifests
-    k8s_commands = [
-        ("kubectl apply -f k8s/namespace.yml", "Creating namespace"),
-        ("kubectl apply -f k8s/postgres/secret.yml", "Creating secrets"),
-        ("kubectl apply -f k8s/postgres/pv-pvc.yml", "Creating persistent storage"),
-        ("kubectl apply -f k8s/postgres/deployment.yml", "Deploying PostgreSQL"),
-        ("kubectl apply -f k8s/postgres/service.yml", "Creating PostgreSQL service"),
-        ("kubectl apply -f k8s/flask-app/secret.yml", "Creating Flask secrets"),
-        ("kubectl apply -f k8s/flask-app/deployment.yml", "Deploying Flask app"),
-        ("kubectl apply -f k8s/flask-app/service.yml", "Creating Flask service"),
-        ("kubectl apply -f k8s/nginx/configmap.yml", "Creating Nginx config"),
-        ("kubectl apply -f k8s/nginx/deployment.yml", "Deploying Nginx"),
-        ("kubectl apply -f k8s/nginx/service.yml", "Creating Nginx service"),
-    ]
-    
-    for command, description in k8s_commands:
-        if not run_command(command, description):
-            print("❌ Kubernetes deployment failed!")
-            return False
-    
-    # Wait for PostgreSQL to be ready
-    print("⏳ Waiting for PostgreSQL to be ready...")
-    for i in range(30):  # Wait up to 30 seconds
-        result = subprocess.run(['kubectl', 'get', 'pods', '-n', 'budget-app', 
-                               '--no-headers'], capture_output=True, text=True)
-        if 'Running' in result.stdout:
-            print("✅ PostgreSQL is ready!")
-            break
-        print(f"⏳ Still waiting... ({i+1}/30)")
-        time.sleep(1)
-    else:
-        print("⚠️  PostgreSQL might not be ready yet, but continuing...")
-    
-    # Set up port forwarding
-    print("🔄 Setting up port-forward to access the application...")
-    
-    # Kill any existing port-forwards
-    try:
-        subprocess.run(['pkill', '-f', 'kubectl.*port-forward'], capture_output=True)
-    except:
-        pass
-    
-    # Start port-forward in background (using port 8889 for Kubernetes)
-    port_forward = subprocess.Popen(['kubectl', 'port-forward', 'service/nginx-service', 
-                                     '8889:80', '-n', 'budget-app'],
-                                    stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL)
-    
-    print("✅ Port-forward started")
-    time.sleep(2)
-    
-    # Test the connection
-    try:
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('localhost', 8889))
-        sock.close()
+    if result.returncode == 0:
+        print("✅ ArgoCD namespace already exists")
         
-        if result == 0:
-            print("✅ Application is accessible!")
+        # Check if ArgoCD pods are running
+        pods_result = subprocess.run(['kubectl', 'get', 'pods', '-n', 'argocd'], 
+                                    capture_output=True, text=True)
+        
+        if 'Running' in pods_result.stdout:
+            print("✅ ArgoCD is already installed and running")
+            return True
         else:
-            print("⚠️  Application might still be starting...")
-    except:
-        pass
+            print("⚠️  ArgoCD namespace exists but pods not running, reinstalling...")
     
-    print("\n🎉 KUBERNETES DEPLOYMENT COMPLETE!")
-    print("🌐 Your app is available at: http://localhost:8889")
-    print("📋 Check status: kubectl get pods -n budget-app")
-    print("📊 View logs: kubectl logs -f deployment/flask-app -n budget-app")
-    print("🛑 To stop port-forward: pkill -f 'kubectl.*port-forward'")
-    print("🛑 To cleanup cluster: k3d cluster delete budget-cluster")
+    # Create namespace
+    print("📦 Creating ArgoCD namespace...")
+    run_command("kubectl create namespace argocd", "Creating namespace", check=False)
+    
+    # Install ArgoCD
+    print("📥 Installing ArgoCD (this takes 2-3 minutes)...")
+    argocd_url = "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+    
+    if not run_command(f"kubectl apply -n argocd -f {argocd_url}", 
+                      "Applying ArgoCD manifests"):
+        return False
+    
+    # Wait for ArgoCD to be ready
+    print("⏳ Waiting for ArgoCD pods to be ready (may take 2-3 minutes)...")
+    print("   This installs several components: server, repo-server, controller, etc.")
+    
+    max_wait = 300  # 5 minutes
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait:
+        result = subprocess.run(['kubectl', 'wait', '--for=condition=Ready', 
+                               'pods', '--all', '-n', 'argocd', 
+                               '--timeout=30s'], 
+                              capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print("✅ ArgoCD installed successfully!")
+            
+            # Show ArgoCD pods
+            print("\n📊 ArgoCD components running:")
+            subprocess.run(['kubectl', 'get', 'pods', '-n', 'argocd'])
+            return True
+        
+        elapsed = int(time.time() - start_time)
+        print(f"   Still waiting... ({elapsed}s)")
+        time.sleep(10)
+    
+    print("⚠️  ArgoCD installation is taking longer than expected")
+    print("   You can check status with: kubectl get pods -n argocd")
+    
+    # Continue anyway - might be ready soon
     return True
 
-def check_ports(deployment_type):
-    """Check ports for the selected deployment type"""
+def get_argocd_password():
+    """Retrieve ArgoCD admin password"""
     try:
-        import socket
+        result = subprocess.run([
+            'kubectl', '-n', 'argocd', 'get', 'secret', 
+            'argocd-initial-admin-secret', 
+            '-o', 'jsonpath={.data.password}'
+        ], capture_output=True, text=True)
         
-        if deployment_type == 'docker':
-            port = 8887
-            port_name = "Docker Compose (8887)"
-        else:  # kubernetes
-            port = 8889
-            port_name = "Kubernetes (8889)"
+        if result.returncode == 0 and result.stdout:
+            import base64
+            password = base64.b64decode(result.stdout).decode('utf-8')
+            return password
+        else:
+            return None
+    except Exception:
+        return None
+
+def deploy_application():
+    """Deploy the application using ArgoCD"""
+    print("\n🚀 STEP 3: APPLICATION DEPLOYMENT")
+    print("-" * 70)
+    
+    # Check if application exists
+    result = subprocess.run(['kubectl', 'get', 'application', 'budget-app', '-n', 'argocd'], 
+                          capture_output=True, text=True)
+    
+    if result.returncode == 0:
+        print("✅ ArgoCD application already exists")
+        print("🔄 Syncing application...")
         
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('localhost', port))
-        sock.close()
+        # Trigger sync
+        subprocess.run(['kubectl', 'patch', 'application', 'budget-app', 
+                       '-n', 'argocd', '--type', 'merge',
+                       '-p', '{"operation":{"initiatedBy":{"username":"deploy-script"},"sync":{}}}'],
+                      capture_output=True)
         
-        if result == 0:
-            print(f"⚠️  ATTENTION: Port {port} is already in use!")
-            print(f"🔍 This is likely {port_name} already running")
-            print()
-            print("You can:")
-            print(f"  1. Stop the existing service and redeploy")
-            print(f"  2. Keep it running (cancel deployment)")
-            print()
+        print("✅ Sync triggered")
+    else:
+        print("📝 Creating ArgoCD application...")
+        
+        if not os.path.exists('argocd/application.yaml'):
+            print("❌ argocd/application.yaml not found!")
+            print("   Please ensure the file exists in your repository")
+            return False
+        
+        if not run_command("kubectl apply -f argocd/application.yaml", 
+                          "Creating ArgoCD application"):
+            return False
+        
+        print("✅ Application created")
+    
+    # Wait for application to sync
+    print("⏳ Waiting for application to sync...")
+    time.sleep(5)
+    
+    # Check application status
+    for i in range(12):  # Wait up to 60 seconds
+        result = subprocess.run([
+            'kubectl', 'get', 'application', 'budget-app', 
+            '-n', 'argocd', '-o', 'jsonpath={.status.sync.status}'
+        ], capture_output=True, text=True)
+        
+        if 'Synced' in result.stdout:
+            print("✅ Application synced successfully!")
+            break
+        
+        print(f"   Syncing... ({(i+1)*5}s)")
+        time.sleep(5)
+    else:
+        print("⚠️  Application sync is taking longer than expected")
+        print("   Check ArgoCD UI for details")
+    
+    # Wait for pods to be ready
+    print("⏳ Waiting for application pods to be ready...")
+    time.sleep(10)
+    
+    for i in range(24):  # Wait up to 2 minutes
+        result = subprocess.run(['kubectl', 'get', 'pods', '-n', 'budget-app'], 
+                              capture_output=True, text=True)
+        
+        if result.returncode == 0 and 'Running' in result.stdout:
+            lines = result.stdout.split('\n')
+            running_count = sum(1 for line in lines if 'Running' in line)
             
-            while True:
-                choice = input("❓ Stop existing service and redeploy? (y/N): ").strip().lower()
-                if choice in ['y', 'yes']:
-                    print("✅ Will stop existing service and continue...")
-                    # Stop services based on deployment type
-                    if deployment_type == 'docker':
-                        subprocess.run(['docker-compose', 'down'], capture_output=True)
-                        # Also kill any port-forward that might be on 8888
-                        subprocess.run(['pkill', '-f', 'kubectl.*port-forward'], capture_output=True)
-                    else:
-                        subprocess.run(['pkill', '-f', 'kubectl.*port-forward'], capture_output=True)
-                    
-                    # Force kill any process on the port
-                    time.sleep(1)
-                    result = subprocess.run(['lsof', f'-ti:{port}'], capture_output=True, text=True)
-                    if result.stdout.strip():
-                        pids = result.stdout.strip().split('\n')
-                        for pid in pids:
-                            subprocess.run(['kill', '-9', pid], capture_output=True)
-                        print(f"✅ Killed processes on port {port}")
-                    
-                    time.sleep(2)
-                    return True
-                elif choice in ['n', 'no', '']:
-                    print("👋 Deployment cancelled. The existing app will keep running.")
-                    return False
-                else:
-                    print("❌ Please enter 'y' for yes or 'n' for no.")
+            if running_count >= 3:  # Wait for at least 3 pods
+                print(f"✅ Application pods are running!")
+                print("\n📊 Current pods:")
+                subprocess.run(['kubectl', 'get', 'pods', '-n', 'budget-app'])
+                return True
         
-        return True  # Port is free, continue
-    except Exception as e:
-        print(f"⚠️  Could not check port: {e}")
-        return True  # Continue anyway
+        print(f"   Waiting for pods... ({(i+1)*5}s)")
+        time.sleep(5)
+    
+    print("⚠️  Some pods might still be starting")
+    print("   Check status with: kubectl get pods -n budget-app")
+    return True
+
+def setup_access():
+    """Set up access to ArgoCD and the application"""
+    print("\n🌐 STEP 4: ACCESS SETUP")
+    print("-" * 70)
+    
+    # Get ArgoCD password
+    print("🔐 Retrieving ArgoCD credentials...")
+    password = get_argocd_password()
+    
+    # Port-forward instructions
+    print("\n" + "=" * 70)
+    print("✅ DEPLOYMENT COMPLETE!")
+    print("=" * 70)
+    
+    print("\n📊 ACCESS YOUR SERVICES:")
+    print()
+    print("1️⃣  ArgoCD UI (GitOps Dashboard):")
+    print("   Run: kubectl port-forward svc/argocd-server -n argocd 8080:443")
+    print("   Open: https://localhost:8080")
+    print("   Username: admin")
+    if password:
+        print(f"   Password: {password}")
+    else:
+        print("   Password: <run command to get it>")
+        print("   Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d")
+    print()
+    print("2️⃣  Budget Application:")
+    print("   Already accessible at: http://localhost:8889")
+    print("   (K3d loadbalancer is active)")
+    print()
+    
+    print("🔍 USEFUL COMMANDS:")
+    print("   • Check application status: kubectl get application -n argocd")
+    print("   • Check pods: kubectl get pods -n budget-app")
+    print("   • View logs: kubectl logs -f deployment/flask-app -n budget-app")
+    print("   • ArgoCD CLI: argocd app list (requires ArgoCD CLI)")
+    print()
+    
+    print("📚 GITOPS WORKFLOW:")
+    print("   1. Push code to Git")
+    print("   2. GitHub Actions builds & pushes image to GHCR")
+    print("   3. Update k8s manifests with new image tag")
+    print("   4. ArgoCD auto-syncs (every 3 min) or click 'Sync' in UI")
+    print("   5. New version deployed!")
+    print()
+    
+    print("🛑 TO CLEANUP:")
+    print("   k3d cluster delete budget-cluster")
+    print()
+    print("=" * 70)
 
 def main():
     """Main deployment script"""
     print_banner()
     
-    # Check current directory
-    if not os.path.exists('docker-compose.yml'):
-        print("❌ Error: docker-compose.yml not found!")
+    # Check if in correct directory
+    if not os.path.exists('k8s'):
+        print("❌ Error: k8s directory not found!")
         print("📁 Please run this script from the project root directory.")
         sys.exit(1)
     
-    # Check Docker Desktop first
-    print("🔍 Checking Docker Desktop...")
-    if not check_docker_desktop():
+    # Check Docker
+    print("🔍 Checking Docker...")
+    if not check_docker():
         sys.exit(1)
     
     print()
-    print("1. 🐳 Docker Compose (Simple, local development)")
-    print("   - Quick setup")
-    print("   - Uses Docker Compose")
-    print("   - Available at http://localhost:8887")
-    print()
-    print("2. ☸️  Kubernetes (K3d cluster, production-like)")
-    print("   - More complex setup")
-    print("   - Uses K3d + Kubernetes")
-    print("   - Learn Kubernetes concepts")
-    print("   - Available at http://localhost:8889")
-    print()
-    print("💡 TIP: You can run both simultaneously on different ports!")
+    
+    # Check requirements
+    if not check_requirements():
+        sys.exit(1)
+    
     print()
     
-    while True:
-        try:
-            choice = input("👉 Choose deployment method (1 or 2): ").strip()
-            
-            if choice == '1':
-                print("\n🐳 You chose Docker Compose!")
-                
-                # Check port first
-                if not check_ports('docker'):
-                    sys.exit(0)
-                
-                # Check Docker requirements
-                missing = [tool for tool, desc in check_requirements() 
-                          if tool in ['docker', 'docker-compose']]
-                if missing:
-                    print(f"❌ Missing requirements: {', '.join(missing)}")
-                    print("📦 Please install the missing tools and try again.")
-                    sys.exit(1)
-                
-                success = deploy_docker_compose()
-                break
-                
-            elif choice == '2':
-                print("\n☸️  You chose Kubernetes!")
-                
-                # Check port first
-                if not check_ports('kubernetes'):
-                    sys.exit(0)
-                
-                # Check Kubernetes requirements
-                missing = [tool for tool, desc in check_requirements() 
-                          if tool in ['docker', 'kubectl', 'k3d']]
-                if missing:
-                    print(f"❌ Missing requirements: {', '.join(missing)}")
-                    print("📦 Please install the missing tools and try again.")
-                    print("💡 Install k3d: https://k3d.io/v5.7.4/#installation")
-                    sys.exit(1)
-                
-                success = deploy_kubernetes()
-                break
-                
-            else:
-                print("❌ Invalid choice! Please enter 1 or 2.")
-                
-        except KeyboardInterrupt:
-            print("\n\n👋 Deployment cancelled by user.")
-            sys.exit(0)
-    
-    if success:
-        print(f"\n🎉 Deployment successful!")
-        print("🚀 Your Budget App is ready to use!")
-    else:
-        print(f"\n❌ Deployment failed!")
-        print("🔍 Please check the error messages above.")
+    try:
+        # Setup K3d cluster
+        if not setup_k3d_cluster():
+            print("❌ Failed to setup K3d cluster")
+            sys.exit(1)
+        
+        # Install ArgoCD
+        if not install_argocd():
+            print("❌ Failed to install ArgoCD")
+            sys.exit(1)
+        
+        # Deploy application
+        if not deploy_application():
+            print("❌ Failed to deploy application")
+            sys.exit(1)
+        
+        # Setup access
+        setup_access()
+        
+        print("🎉 SUCCESS! Your GitOps-enabled Budget App is ready!")
+        
+    except KeyboardInterrupt:
+        print("\n\n👋 Deployment cancelled by user.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    main() 
+    main()
