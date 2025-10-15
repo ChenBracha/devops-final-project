@@ -119,8 +119,9 @@ def setup_k3d_cluster():
             print("❌ Cluster exists but not accessible")
             return False
     else:
-        print("🏗️  Creating new K3d cluster...")
-        if not run_command("k3d cluster create budget-cluster --port '8889:80@loadbalancer'", 
+        print("🏗️  Creating new K3d cluster with port mappings...")
+        # Expose ports: 8080 for app, 8443 for ArgoCD UI
+        if not run_command("k3d cluster create budget-cluster --port '8080:80@loadbalancer' --port '8443:443@loadbalancer'", 
                           "Creating K3d cluster"):
             return False
         
@@ -128,6 +129,8 @@ def setup_k3d_cluster():
         time.sleep(5)
         
         print("✅ K3d cluster created successfully")
+        print("   • Application will be accessible at: http://localhost:8080")
+        print("   • ArgoCD UI will be accessible at: https://localhost:8443")
         return True
 
 def install_argocd():
@@ -179,6 +182,12 @@ def install_argocd():
         
         if result.returncode == 0:
             print("✅ ArgoCD installed successfully!")
+            
+            # Patch ArgoCD server service to LoadBalancer
+            print("🔧 Exposing ArgoCD UI...")
+            subprocess.run(['kubectl', 'patch', 'svc', 'argocd-server', '-n', 'argocd',
+                          '-p', '{"spec": {"type": "LoadBalancer"}}'],
+                         capture_output=True)
             
             # Show ArgoCD pods
             print("\n📊 ArgoCD components running:")
@@ -307,21 +316,21 @@ def setup_access():
     print("✅ DEPLOYMENT COMPLETE!")
     print("=" * 70)
     
-    print("\n📊 ACCESS YOUR SERVICES:")
+    print("\n📊 ACCESS YOUR SERVICES (NO COMMANDS NEEDED):")
     print()
-    print("1️⃣  ArgoCD UI (GitOps Dashboard):")
-    print("   Run: kubectl port-forward svc/argocd-server -n argocd 8080:443")
-    print("   Open: https://localhost:8080")
+    print("1️⃣  Budget Application:")
+    print("   🌐 Open in browser: http://localhost:8080")
+    print("   ✓ Ready to use immediately!")
+    print()
+    print("2️⃣  ArgoCD UI (GitOps Dashboard):")
+    print("   🌐 Open in browser: https://localhost:8443")
+    print("   ⚠️  Accept the self-signed certificate warning")
     print("   Username: admin")
     if password:
         print(f"   Password: {password}")
     else:
-        print("   Password: <run command to get it>")
+        print("   Password: <run command below to get it>")
         print("   Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d")
-    print()
-    print("2️⃣  Budget Application:")
-    print("   Already accessible at: http://localhost:8889")
-    print("   (K3d loadbalancer is active)")
     print()
     
     print("🔍 USEFUL COMMANDS:")
