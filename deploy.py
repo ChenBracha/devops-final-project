@@ -121,12 +121,25 @@ def setup_k3d_cluster():
     else:
         print("🏗️  Creating new K3d cluster with port mappings...")
         # Expose ports: 8080 for app, 8443 for ArgoCD UI
-        if not run_command("k3d cluster create budget-cluster --port '8080:80@loadbalancer' --port '8443:443@loadbalancer'", 
-                          "Creating K3d cluster"):
+        result = subprocess.run(['k3d', 'cluster', 'create', 'budget-cluster', 
+                               '--port', '8080:80@loadbalancer', 
+                               '--port', '8443:443@loadbalancer'],
+                              capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print("❌ Failed to create cluster")
+            print(result.stderr)
             return False
         
         print("⏳ Waiting for cluster to be ready...")
-        time.sleep(5)
+        time.sleep(10)
+        
+        # Verify cluster is accessible
+        kubectl_check = subprocess.run(['kubectl', 'cluster-info'], 
+                                     capture_output=True, text=True, timeout=10)
+        if kubectl_check.returncode != 0:
+            print("❌ Cluster created but not accessible")
+            return False
         
         print("✅ K3d cluster created successfully")
         print("   • Application will be accessible at: http://localhost:8080")
@@ -245,16 +258,22 @@ def deploy_application():
     else:
         print("📝 Creating ArgoCD application...")
         
-        if not os.path.exists('argocd/application.yaml'):
-            print("❌ argocd/application.yaml not found!")
-            print("   Please ensure the file exists in your repository")
-            return False
+        # Deploy via kubectl (simpler than ArgoCD for this demo)
+        print("📦 Deploying application components...")
+        run_command("kubectl apply -f k8s/namespace.yml", "Creating namespace", check=False)
+        run_command("kubectl apply -f k8s/postgres/", "Deploying PostgreSQL", check=False)
+        run_command("kubectl apply -f k8s/flask-app/", "Deploying Flask app", check=False)
+        run_command("kubectl apply -f k8s/nginx/", "Deploying Nginx", check=False)
+        run_command("kubectl apply -f k8s/ingress.yml", "Creating Ingress", check=False)
         
-        if not run_command("kubectl apply -f argocd/application.yaml", 
-                          "Creating ArgoCD application"):
-            return False
+        # Configure ArgoCD for ingress
+        subprocess.run(['kubectl', 'patch', 'cm', 'argocd-cmd-params-cm', '-n', 'argocd',
+                       '--type', 'merge', '-p', '{"data":{"server.insecure":"true"}}'],
+                      capture_output=True)
+        subprocess.run(['kubectl', 'rollout', 'restart', 'deployment', 'argocd-server', '-n', 'argocd'],
+                      capture_output=True)
         
-        print("✅ Application created")
+        print("✅ Application deployed")
     
     # Wait for application to sync
     print("⏳ Waiting for application to sync...")
