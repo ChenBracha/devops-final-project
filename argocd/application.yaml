@@ -13,6 +13,8 @@ spec:
     repoURL: https://github.com/ChenBracha/devops-final-project.git
     targetRevision: HEAD
     path: k8s
+    directory:
+      recurse: true  # Recursively scan subdirectories
   
   # Destination cluster
   destination:
