@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: ghcr.io/chenbracha/devops-final-project:sha-7a513f1
+        image: ghcr.io/chenbracha/devops-final-project:sha-6ae3c2d
         imagePullPolicy: Always  # Pull from GHCR registry (auto-updated by CI/CD)
         ports:
         - containerPort: 5000
