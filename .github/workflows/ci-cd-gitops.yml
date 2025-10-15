@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: test-and-scan
     permissions:
-      contents: read
+      contents: write  # Allow pushing manifest updates
       packages: write
     
     # Only run on push to main (not on PRs)
@@ -98,15 +98,36 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Set short SHA
+        id: short-sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
       - name: Run Trivy on pushed image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.short-sha.outputs.short }}
           ignore-unfixed: true
           format: 'table'
           severity: 'CRITICAL'
           exit-code: '0'  # Don't fail after push
+
+      - name: Update Kubernetes manifests with new image tag
+        run: |
+          # Update the deployment.yml with the new image tag
+          SHORT_SHA="${{ steps.short-sha.outputs.short }}"
+          sed -i "s|image: ghcr.io/chenbracha/devops-final-project:.*|image: ghcr.io/chenbracha/devops-final-project:sha-${SHORT_SHA}|g" k8s/flask-app/deployment.yml
+          
+          # Configure Git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Commit and push if there are changes
+          git add k8s/flask-app/deployment.yml
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update image to sha-${SHORT_SHA} [skip ci]"
+            git push
+          fi
 
       - name: Image Summary
         run: |
@@ -121,4 +142,6 @@ jobs:
           echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** \`sha-${{ steps.short-sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**K8s Manifest Updated:** ✅" >> $GITHUB_STEP_SUMMARY
 

@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: devops-final-project-web:latest
-        imagePullPolicy: Never  # Use local image built by docker-compose
+        image: ghcr.io/chenbracha/devops-final-project:sha-latest
+        imagePullPolicy: Always  # Pull from GHCR registry (auto-updated by CI/CD)
         ports:
         - containerPort: 5000
         env:
