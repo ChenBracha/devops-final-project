@@ -123,7 +123,9 @@ If you want to understand what `deploy.py` does:
 
 ```bash
 # Create cluster with port mapping
-k3d cluster create budget-cluster --port "8889:80@loadbalancer"
+k3d cluster create budget-cluster \
+  --port "8080:80@loadbalancer" \
+  --port "8443:443@loadbalancer"
 
 # Verify cluster is running
 kubectl cluster-info
@@ -133,7 +135,8 @@ kubectl get nodes
 **What happens:**
 - K3d creates a K3s (lightweight Kubernetes) cluster
 - Runs inside Docker containers
-- Port 8889 on your laptop maps to port 80 in the cluster
+- Port 8080 on your laptop maps to port 80 in the cluster (Budget App)
+- Port 8443 on your laptop maps to port 443 in the cluster (ArgoCD UI)
 
 ### Step 2: Install ArgoCD
 
@@ -181,13 +184,15 @@ kubectl get application budget-app -n argocd -w
 kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
 
-# Access ArgoCD UI (in another terminal)
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-# Open: https://localhost:8080
+# ArgoCD UI is directly accessible (no port-forward needed!)
+# Open: https://localhost:8443
 # Login: admin / <password-from-above>
 
-# Application is already accessible at:
-# http://localhost:8889
+# Application is accessible at:
+# http://localhost:8080
+
+# ArgoCD UI is accessible at:
+# https://localhost:8443
 ```
 
 ---
@@ -214,9 +219,9 @@ budget-app (namespace)
 | Service | Internal Port | External Access |
 |---------|--------------|-----------------|
 | Flask App | 5000 | Via Nginx |
-| Nginx | 80 | http://localhost:8889 |
+| Nginx | 80 | http://localhost:8080 |
 | PostgreSQL | 5432 | Internal only |
-| ArgoCD UI | 443 | https://localhost:8080 (port-forward) |
+| ArgoCD UI | 443 | https://localhost:8443 |
 | Prometheus | 9090 | kubectl port-forward |
 | Grafana | 3000 | kubectl port-forward |
 
@@ -510,11 +515,11 @@ See [MONITORING.md](docs/MONITORING.md) for detailed monitoring setup.
 Yes! Just change:
 ```bash
 # Instead of:
-k3d cluster create budget-cluster --port "8889:80@loadbalancer"
+k3d cluster create budget-cluster --port "8080:80@loadbalancer" --port "8443:443@loadbalancer"
 
 # Use:
 minikube start
-kubectl port-forward -n budget-app svc/nginx-service 8889:80
+kubectl port-forward -n budget-app svc/nginx-service 8080:80
 ```
 
 ### How to update Python code?
@@ -559,8 +564,8 @@ After deployment, verify:
 - [ ] ArgoCD pods running: `kubectl get pods -n argocd`
 - [ ] Application synced: `kubectl get application -n argocd`
 - [ ] App pods running: `kubectl get pods -n budget-app`
-- [ ] App accessible: http://localhost:8889
-- [ ] ArgoCD UI accessible: https://localhost:8080 (after port-forward)
+- [ ] App accessible: http://localhost:8080
+- [ ] ArgoCD UI accessible: https://localhost:8443
 - [ ] Can login to ArgoCD
 - [ ] Can see application in ArgoCD UI
 - [ ] Monitoring works: Prometheus & Grafana

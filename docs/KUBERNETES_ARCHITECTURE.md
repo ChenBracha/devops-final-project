@@ -290,6 +290,69 @@ metadata:
 
 ---
 
+### 🔍 Namespace Architecture
+
+**This project uses TWO namespaces:**
+
+#### 1. `argocd` namespace
+**Purpose**: Contains ArgoCD itself (the GitOps controller)
+
+**Components**:
+- `argocd-server` - Web UI and API
+- `argocd-repo-server` - Git repository connection
+- `argocd-application-controller` - Manages applications
+- `argocd-redis` - Cache
+- `argocd-dex-server` - SSO/Auth (optional)
+
+**Why separate?**
+- ✅ **Separation of concerns**: ArgoCD is the "operator" that manages applications, not part of the applications themselves
+- ✅ **Security**: ArgoCD has elevated permissions to manage cluster resources
+- ✅ **Lifecycle**: ArgoCD persists even if you delete application namespaces
+- ✅ **Multi-tenancy**: One ArgoCD can manage multiple application namespaces
+- ✅ **Best practice**: Standard pattern recommended by ArgoCD documentation
+
+#### 2. `budget-app` namespace
+**Purpose**: Contains your actual application and its dependencies
+
+**Components**:
+- Flask application
+- PostgreSQL database
+- Nginx reverse proxy
+- Prometheus monitoring
+- Grafana dashboards
+
+**Why separate from ArgoCD?**
+- ✅ **Clean separation**: Your app doesn't mix with ArgoCD infrastructure
+- ✅ **Easy cleanup**: Delete namespace = delete entire app (without breaking ArgoCD)
+- ✅ **Resource isolation**: Separate quotas, limits, and RBAC policies
+- ✅ **Production-ready**: Mirrors real-world multi-namespace architecture
+
+**Visualization**:
+```
+┌────────────────────────────────────────┐
+│         K3d Cluster                     │
+│                                         │
+│  ┌──────────────────────────────────┐ │
+│  │  argocd namespace                │ │
+│  │  (The GitOps Controller)         │ │
+│  │  - Watches Git                   │ │
+│  │  - Manages deployments           │ │
+│  │  - Provides UI                   │ │
+│  └──────────┬───────────────────────┘ │
+│             │ manages ↓               │
+│  ┌──────────────────────────────────┐ │
+│  │  budget-app namespace            │ │
+│  │  (Your Application)              │ │
+│  │  - Flask app                     │ │
+│  │  - PostgreSQL                    │ │
+│  │  - Nginx                         │ │
+│  │  - Prometheus + Grafana          │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘
+```
+
+---
+
 #### `k8s/ingress.yml` ⭐ **NEW - Direct Browser Access**
 
 **Purpose**: Exposes services via Traefik ingress (no port-forward needed).
@@ -522,37 +585,101 @@ server {
 
 #### `k8s/monitoring/` - Prometheus & Grafana
 
-##### Prometheus
+**Location**: Both Prometheus and Grafana run in the `budget-app` namespace alongside your application.
+
+**Why in budget-app namespace?**
+- ✅ They monitor the budget-app specifically
+- ✅ Deployed and managed together with the application
+- ✅ Deleted together when cleaning up
+- ✅ Can be easily scaled with the application
+
+##### `prometheus-configmap.yml`
+**Purpose**: Prometheus configuration file
+
 ```yaml
-ServiceAccount: prometheus
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: budget-app
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    
+    scrape_configs:
+      # Scrape Flask application metrics
+      - job_name: 'flask-app'
+        static_configs:
+          - targets: ['flask-service:5000']
+      
+      # Scrape Nginx metrics
+      - job_name: 'nginx'
+        static_configs:
+          - targets: ['nginx-service:80']
+```
+
+##### `prometheus-deployment.yml`
+**Purpose**: Deploys Prometheus server
+
+```yaml
 Deployment: prometheus
+  Replicas: 1
   Image: prom/prometheus:latest
   Port: 9090
-  ConfigMap: prometheus-config
+  Volume: prometheus-config (ConfigMap)
+  Resources:
+    Requests: 256Mi RAM, 250m CPU
+    Limits: 512Mi RAM, 500m CPU
+
 Service: prometheus-service
   Type: ClusterIP
   Port: 9090
 ```
 
-**Prometheus Configuration** (`prometheus-configmap.yml`):
-```yaml
-scrape_configs:
-  - job_name: 'flask-app'
-    static_configs:
-      - targets: ['flask-service:5000']
-  - job_name: 'nginx'
-    static_configs:
-      - targets: ['nginx-service:80']
+**Access**:
+```bash
+kubectl port-forward -n budget-app svc/prometheus-service 9090:9090
+# Open: http://localhost:9090
 ```
 
-##### Grafana
+##### `grafana-configmap.yml`
+**Purpose**: Grafana datasource and dashboard configuration
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: budget-app
+data:
+  prometheus.yml: |
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus-service:9090
+      isDefault: true
+```
+
+##### `grafana-deployment.yml`
+**Purpose**: Deploys Grafana visualization platform
+
 ```yaml
 Deployment: grafana
+  Replicas: 1
   Image: grafana/grafana:latest
   Port: 3000
   ConfigMaps:
     - grafana-datasources (Prometheus connection)
     - grafana-dashboards (dashboard config)
+  Environment:
+    GF_AUTH_ANONYMOUS_ENABLED: true
+    GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+  Resources:
+    Requests: 128Mi RAM, 100m CPU
+    Limits: 256Mi RAM, 200m CPU
+
 Service: grafana-service
   Type: ClusterIP
   Port: 3000
@@ -562,8 +689,13 @@ Service: grafana-service
 ```bash
 kubectl port-forward -n budget-app svc/grafana-service 3000:3000
 # Open: http://localhost:3000
-# Default: admin/admin
+# Login: admin/admin
 ```
+
+**Pre-configured**:
+- ✅ Prometheus datasource auto-configured
+- ✅ Points to `prometheus-service:9090`
+- ✅ Ready to create dashboards immediately
 
 ---
 

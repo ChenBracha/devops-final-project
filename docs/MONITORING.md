@@ -8,10 +8,10 @@ Your Budget App now includes a complete monitoring stack with **Prometheus** and
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| **Grafana Dashboard** | http://localhost:3000 | admin / admin |
-| **Prometheus** | http://localhost:9090 | No auth |
-| **Flask Metrics** | http://localhost:8887/metrics | No auth |
-| **Budget App** | http://localhost:8887 | Demo mode or OAuth |
+| **Grafana Dashboard** | http://localhost:3000 (port-forward) | admin / admin |
+| **Prometheus** | http://localhost:9090 (port-forward) | No auth |
+| **Flask Metrics** | http://localhost:8080/metrics | No auth |
+| **Budget App** | http://localhost:8080 | Demo mode or OAuth |
 
 ## ✨ What's Being Monitored
 
@@ -32,23 +32,31 @@ Your Budget App now includes a complete monitoring stack with **Prometheus** and
 
 ## 🚀 Quick Start
 
-### 1. Start Services
+### 1. Deploy Application
 ```bash
-docker-compose up -d
+python3 deploy.py
 ```
 
 ### 2. Generate Some Traffic
 Visit your app and use it:
 ```bash
-open http://localhost:8887
+open http://localhost:8080
 ```
 
-### 3. View Metrics in Grafana
+### 3. Access Monitoring
+
+**Prometheus:**
 ```bash
-open http://localhost:3000
+kubectl port-forward -n budget-app svc/prometheus-service 9090:9090
+open http://localhost:9090
 ```
 
-Login: `admin` / `admin`
+**Grafana:**
+```bash
+kubectl port-forward -n budget-app svc/grafana-service 3000:3000
+open http://localhost:3000
+# Login: admin / admin
+```
 
 ## 📈 Create Your First Dashboard
 
@@ -109,11 +117,17 @@ topk(5,
 
 ### Generate Load
 ```bash
-# Install apache-bench
+# Install apache-bench (macOS)
 brew install httpd
 
+# Or use hey (faster)
+brew install hey
+
 # Generate 1000 requests
-ab -n 1000 -c 10 http://localhost:8887/
+ab -n 1000 -c 10 http://localhost:8080/
+
+# Or with hey
+hey -n 1000 -c 10 http://localhost:8080/
 ```
 
 Watch the metrics spike in Grafana! 📈
@@ -184,7 +198,7 @@ open http://localhost:9090/targets
 
 ### View Raw Metrics
 ```bash
-curl http://localhost:8887/metrics
+curl http://localhost:8080/metrics
 
 # You'll see:
 # flask_http_request_total{...} 123

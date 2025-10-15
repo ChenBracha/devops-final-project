@@ -66,7 +66,9 @@ Git Repository → ArgoCD → Kubernetes Cluster
 k3d cluster list
 
 # If not exists, create it
-k3d cluster create budget-cluster --port "8889:80@loadbalancer"
+k3d cluster create budget-cluster \
+  --port "8080:80@loadbalancer" \
+  --port "8443:443@loadbalancer"
 
 # Verify connection
 kubectl cluster-info
@@ -95,27 +97,28 @@ echo "✅ ArgoCD installed successfully!"
 ### Step 4: Access ArgoCD UI
 
 ```bash
-# Port forward to access the UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
-
 # Get the initial admin password
 ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
 
 echo "📊 ArgoCD Login Information:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "URL:      https://localhost:8080"
+echo "URL:      https://localhost:8443"
 echo "Username: admin"
 echo "Password: $ARGOCD_PASSWORD"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "💡 Ignore the SSL warning (self-signed certificate)"
+echo "💡 ArgoCD is accessible directly (no port-forward needed!)"
 
 # Open browser (macOS)
-open https://localhost:8080
+open https://localhost:8443
 ```
 
-**Note:** You'll see an SSL warning - click "Advanced" → "Proceed" (it's safe, self-signed certificate)
+**Note:** 
+- ArgoCD UI is accessible directly via Traefik ingress at `https://localhost:8443`
+- You'll see an SSL warning - click "Advanced" → "Proceed" (it's safe, self-signed certificate)
+- No port-forwarding needed!
 
 ---
 
@@ -292,7 +295,7 @@ kubectl get pods -n budget-app -w
 ```
 
 **Or check in ArgoCD UI:**
-- Go to https://localhost:8080
+- Go to https://localhost:8443
 - Click on "budget-app"
 - Watch the sync happen visually!
 
@@ -360,11 +363,8 @@ kubectl get pods -n budget-app -w
 ### Access UI
 
 ```bash
-# If port-forward stopped
-kubectl port-forward svc/argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
-
-# Open browser
-open https://localhost:8080
+# ArgoCD UI is directly accessible (no port-forward needed!)
+open https://localhost:8443
 ```
 
 ### What You'll See:
@@ -524,7 +524,7 @@ rather than CI pushing to the cluster."
 
 ```bash
 # Show ArgoCD UI
-open https://localhost:8080
+open https://localhost:8443
 
 # Make a change
 echo "# Demo" >> app/main.py
@@ -600,7 +600,7 @@ After setup, verify everything works:
 
 - [ ] K3d cluster running: `k3d cluster list`
 - [ ] ArgoCD installed: `kubectl get pods -n argocd`
-- [ ] ArgoCD UI accessible: https://localhost:8080
+- [ ] ArgoCD UI accessible: https://localhost:8443
 - [ ] Application created: `kubectl get application -n argocd`
 - [ ] Application synced: Status shows "Synced" and "Healthy"
 - [ ] Pods running: `kubectl get pods -n budget-app`
@@ -613,9 +613,8 @@ After setup, verify everything works:
 ## 🚀 Quick Reference Commands
 
 ```bash
-# ArgoCD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-open https://localhost:8080
+# ArgoCD UI (direct access via ingress)
+open https://localhost:8443
 
 # Get password
 kubectl -n argocd get secret argocd-initial-admin-secret \

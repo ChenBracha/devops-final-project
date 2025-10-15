@@ -40,8 +40,8 @@ The script will:
 - ✅ Set up GitOps continuous deployment
 
 **That's it!** Your application will be running at:
-- **Application**: http://localhost:8889
-- **ArgoCD UI**: https://localhost:8080 (after port-forward)
+- **Application**: http://localhost:8080
+- **ArgoCD UI**: https://localhost:8443
 
 ### **What Gets Deployed**
 
@@ -76,9 +76,9 @@ This project uses **Kubernetes (K3d) with GitOps** for production-grade deployme
 | Component | Description | Access |
 |-----------|-------------|--------|
 | ☸️ **K3d Cluster** | Local Kubernetes cluster | Background |
-| 🔄 **ArgoCD** | GitOps controller (runs as pods) | https://localhost:8080 |
-| 🌐 **Application** | Budget App + PostgreSQL + Nginx | http://localhost:8889 |
-| 📊 **Monitoring** | Prometheus + Grafana | Built-in |
+| 🔄 **ArgoCD** | GitOps controller (runs as pods) | https://localhost:8443 |
+| 🌐 **Application** | Budget App + PostgreSQL + Nginx | http://localhost:8080 |
+| 📊 **Monitoring** | Prometheus + Grafana | Port-forward |
 
 ### 🚀 Deployment Workflow
 
@@ -170,7 +170,7 @@ k3d version
 
 ---
 
-## �� Configuration
+## ⚙️ Configuration
 
 ### 1. Google OAuth Setup (Optional)
 
@@ -180,7 +180,7 @@ k3d version
 4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
 5. Set the application type to "Web application"
 6. Add authorized redirect URI:
-   - `http://localhost:8889/auth/google/callback`
+   - `http://localhost:8080/auth/google/callback`
 7. Copy the Client ID and Client Secret
 
 ### 2. Environment Configuration
@@ -331,8 +331,8 @@ python3 deploy.py
 
 **Access ArgoCD UI:**
 ```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-# Open https://localhost:8080
+# Direct browser access (no port-forward needed!)
+# Open https://localhost:8443
 # Username: admin
 # Password: (shown after deployment)
 ```
@@ -382,17 +382,17 @@ docker-compose up
 
 Integrated Prometheus + Grafana monitoring stack:
 
-**Local (Docker Compose):**
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000
-
-**Kubernetes (K3d/GKE):**
+**Kubernetes (K3d):**
 ```bash
-# Deploy monitoring stack
-kubectl apply -f k8s/monitoring/
+# Monitoring is deployed automatically
+
+# Access Prometheus
+kubectl port-forward -n budget-app svc/prometheus-service 9090:9090
+# Open http://localhost:9090
 
 # Access Grafana
 kubectl port-forward -n budget-app svc/grafana-service 3000:3000
+# Open http://localhost:3000 (admin/admin)
 ```
 
 **Metrics collected:**

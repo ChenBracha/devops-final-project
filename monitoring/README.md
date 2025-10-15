@@ -19,18 +19,31 @@ This directory contains configuration for Prometheus + Grafana monitoring.
 
 ## 🚀 Quick Start
 
-### Start Monitoring
+### Deploy with Monitoring
 ```bash
-docker-compose up -d prometheus grafana
+# Monitoring is automatically deployed
+python3 deploy.py
 ```
 
 ### Access Dashboards
-- **Grafana**: http://localhost:3000
-  - Username: `admin`
-  - Password: `admin`
-  
-- **Prometheus**: http://localhost:9090
-- **Flask Metrics**: http://localhost:8887/metrics
+
+**Grafana:**
+```bash
+kubectl port-forward -n budget-app svc/grafana-service 3000:3000
+open http://localhost:3000
+# Username: admin, Password: admin
+```
+
+**Prometheus:**
+```bash
+kubectl port-forward -n budget-app svc/prometheus-service 9090:9090
+open http://localhost:9090
+```
+
+**Flask Metrics:**
+```bash
+curl http://localhost:8080/metrics
+```
 
 ## 📈 Using Grafana
 
@@ -110,7 +123,7 @@ open http://localhost:9090/targets
 
 ### View raw metrics
 ```bash
-curl http://localhost:8887/metrics
+curl http://localhost:8080/metrics
 ```
 
 ## 📚 Learn More

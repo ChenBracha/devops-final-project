@@ -2,11 +2,11 @@
 
 ## Overview
 
-This project uses **Continuous Integration (CI)** via GitHub Actions and **manual local deployment** for development and testing.
+This project uses **GitOps CI/CD** with GitHub Actions and ArgoCD for automated deployment.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  Development Workflow                        │
+│                  GitOps Workflow                             │
 └─────────────────────────────────────────────────────────────┘
 
 1. Code Changes (Local)
@@ -14,250 +14,206 @@ This project uses **Continuous Integration (CI)** via GitHub Actions and **manua
 2. Git Push to GitHub
    ↓
 3. CI Pipeline (Automated)
-   ├── Build Docker images
-   ├── Run tests
+   ├── Build multi-platform Docker images
+   ├── Run tests & linting
    ├── Security scan (Trivy)
-   └── ✅ Pass / ❌ Fail
+   ├── Push to GHCR with SHA tag
+   └── Update K8s manifest with new image
    ↓
-4. Manual Deployment (Local)
-   ├── Option A: Docker Compose (quick dev)
-   └── Option B: K3d (production-like)
+4. CD Pipeline (Automated - ArgoCD)
+   ├── Detects manifest change
+   ├── Pulls new image
+   └── Deploys automatically
+   ↓
+5. ✅ New version running!
 ```
 
 ---
 
 ## 🔄 Continuous Integration (CI)
 
-**Automated on every push to any branch**
+**Automated on every push to main branch**
 
 ### What Happens:
 1. **Checkout code** from GitHub
-2. **Build Docker images** (web, nginx)
-3. **Run linting** (code quality checks)
-4. **Security scan** with Trivy (critical vulnerabilities only)
-5. **Upload artifacts** (build outputs)
+2. **Build multi-platform Docker images** (linux/amd64, linux/arm64)
+3. **Run linting** with Flake8 (code quality checks)
+4. **Security scan** with Trivy (filesystem and container image)
+5. **Push to GHCR** with immutable SHA tags
+6. **Update Kubernetes manifest** with new image tag
+7. **Commit manifest back to Git** (triggers GitOps)
 
 ### Status:
-- ✅ **Workflow file:** `.github/workflows/ci.yml`
-- ✅ **Triggered on:** Push to any branch, Pull requests
-- ✅ **Results:** Visible in GitHub Actions tab
+- ✅ **Workflow file:** `.github/workflows/ci-cd-gitops.yml`
+- ✅ **Triggered on:** Push to main branch, Pull requests
+- ✅ **Registry:** GitHub Container Registry (GHCR)
+- ✅ **Tags:** `sha-XXXXXXX` (immutable), `latest`, `main`
 
 ### View CI Status:
 ```bash
 # Check latest CI run
-https://github.com/YOUR_USERNAME/devops-final-project/actions
+https://github.com/ChenBracha/devops-final-project/actions
 ```
 
 ---
 
 ## 📦 Continuous Deployment (CD)
 
-**Manual deployment to local environments**
+**Fully automated with ArgoCD (GitOps)**
 
-Since both Docker Compose and K3d run locally on your laptop, deployment is manual. 
+This project uses **ArgoCD** for automated continuous deployment:
 
-> **Note:** In a production environment, CD would be fully automated using:
-> - GitOps tools (ArgoCD, FluxCD)
-> - GitHub Actions with self-hosted runners
-> - Cloud-native CD pipelines (GCP Cloud Build, AWS CodePipeline)
-> - Deployment to remote Kubernetes clusters
+> **How it works:**
+> 1. CI updates Kubernetes manifest in Git with new image tag
+> 2. ArgoCD polls Git every 3 minutes
+> 3. ArgoCD detects the change
+> 4. ArgoCD automatically syncs to the cluster
+> 5. New version deployed! 🚀
 
-For local development, manual deployment is the standard practice. Here's the workflow:
+**Benefits:**
+- ✅ Pull-based deployment (more secure)
+- ✅ Git as single source of truth
+- ✅ Self-healing (auto-reverts manual changes)
+- ✅ Easy rollback (just revert Git commit)
+- ✅ Full audit trail in Git history
 
-### Step 1: Ensure CI Passed ✅
+Here's the workflow:
+
+### Step 1: Initial Setup (One-Time)
 ```bash
-# Check GitHub Actions
-# Green checkmark on your commit = good to deploy
-```
-
-### Step 2: Pull Latest Code
-```bash
-git pull origin main
-```
-
-### Step 3: Rebuild Images (if code changed)
-```bash
-# Rebuild Docker images with latest code
-docker-compose build --no-cache
-```
-
-### Step 4: Choose Deployment Method
-
-#### Option A: Docker Compose (Quick Development)
-```bash
-# Using deployment script
+# Run the deployment script
 python3 deploy.py
-# Choose option 1
 
-# Or manually
-docker-compose down
-docker-compose build
-docker-compose up -d
+# This will:
+# 1. Create K3d cluster
+# 2. Install ArgoCD
+# 3. Deploy application
+# 4. Set up GitOps
 
-# Access at http://localhost:8887
+# Access:
+# - Budget App: http://localhost:8080
+# - ArgoCD UI: https://localhost:8443
 ```
 
-**When to use:**
-- 🚀 Quick feature testing
-- 🔧 Rapid iteration
-- 🐛 Debugging
-
-#### Option B: K3d (Production-like)
+### Step 2: Make Code Changes
 ```bash
-# Using deployment script
-python3 deploy.py
-# Choose option 2
+# 1. Make your changes
+vim app/main.py
 
-# Or manually
-k3d cluster create budget-cluster --port "8889:80@loadbalancer"
-kubectl apply -f k8s/namespace.yml
-kubectl apply -f k8s/postgres/
-kubectl apply -f k8s/flask-app/
-kubectl apply -f k8s/nginx/
-kubectl apply -f k8s/monitoring/
-
-# Access at http://localhost:8889
+# 2. Commit and push
+git add app/main.py
+git commit -m "feat: Add new feature"
+git push origin main
 ```
 
-**When to use:**
-- ✅ Testing K8s configurations
-- 📊 Testing with monitoring stack
-- 🎓 Learning Kubernetes
-- 🎯 Pre-demo verification
+### Step 3: Watch CI/CD Happen Automatically
+```bash
+# 1. GitHub Actions builds image and updates manifest
+# Visit: https://github.com/ChenBracha/devops-final-project/actions
+
+# 2. ArgoCD detects change and deploys automatically (within 3 min)
+# Visit: https://localhost:8443
+
+# 3. Check deployment
+kubectl get pods -n budget-app -w
+```
+
+**That's it!** Fully automated deployment via GitOps.
 
 ---
 
-## 🎯 Deployment Decision Tree
+## 🎯 GitOps Workflow Diagram
 
 ```
-Need quick test of code changes?
-├─ YES → Use Docker Compose (faster)
-└─ NO  → Continue...
+┌──────────────────────────────────────────────────────┐
+│              Complete GitOps Flow                     │
+└──────────────────────────────────────────────────────┘
 
-Testing Kubernetes configs?
-├─ YES → Use K3d
-└─ NO  → Continue...
-
-Need monitoring/metrics?
-├─ YES → Use K3d (has Prometheus/Grafana)
-└─ NO  → Use Docker Compose
-
-Preparing for demo/presentation?
-└─ Use K3d (production-like)
+Developer → Git Push
+     ↓
+GitHub Actions (CI)
+  ├─ Build multi-platform image
+  ├─ Tag: sha-XXXXXXX
+  ├─ Push to GHCR
+  ├─ Update k8s/flask-app/deployment.yml
+  └─ Commit back to Git [skip ci]
+     ↓
+ArgoCD (CD) - Polls every 3 min
+  ├─ Detect manifest change
+  ├─ Pull new image from GHCR
+  ├─ Rolling update (2 replicas)
+  └─ Health check
+     ↓
+✅ New version deployed!
 ```
 
 ---
 
 ## 📋 Pre-Deployment Checklist
 
-Before deploying, verify:
+Before initial deployment, verify:
 
-- [ ] ✅ CI pipeline passed (green checkmark on GitHub)
-- [ ] 📝 Environment variables set (`.env` file exists)
 - [ ] 🐳 Docker Desktop is running
-- [ ] 🔄 Latest code pulled from main branch
-- [ ] 🗑️ Old deployments cleaned up (if switching methods)
+- [ ] ✅ kubectl installed
+- [ ] ✅ k3d installed
+- [ ] 📝 Secrets configured in `k8s/*/secret.yml`
+- [ ] 🔐 GitHub repository access (for ArgoCD)
 
 ---
 
 ## 🧹 Cleanup Commands
 
-### Stop Docker Compose
+### Delete K3d Cluster
 ```bash
-docker-compose down
-
-# With volume cleanup
-docker-compose down -v
-```
-
-### Stop K3d
-```bash
-# Delete cluster
+# Delete entire cluster
 k3d cluster delete budget-cluster
 
-# Stop port-forward (if running)
+# Stop port-forward (if any)
 pkill -f 'kubectl.*port-forward'
 ```
 
-### Full Cleanup (Both)
+### Clean Docker Resources
 ```bash
-# Stop everything
-docker-compose down -v
-k3d cluster delete budget-cluster
-pkill -f 'kubectl.*port-forward'
-
-# Clean Docker images (optional)
+# Remove unused images
 docker system prune -a
+
+# Remove specific image versions
+docker rmi ghcr.io/chenbracha/devops-final-project:sha-XXXXXXX
 ```
 
 ---
 
 ## 🔍 Verification After Deployment
 
-### Docker Compose
+### Check K3d Cluster
 ```bash
-# Check services
-docker-compose ps
+# Check cluster
+k3d cluster list
 
-# Should show:
-# web        Up      8887->5000
-# postgres   Up      5432
-# nginx      Up      8887->80
+# Check ArgoCD
+kubectl get pods -n argocd
 
-# Check logs
-docker-compose logs -f web
+# Check application
+kubectl get application -n argocd
 
-# Test endpoint
-curl http://localhost:8887/api/health
-```
-
-### K3d
-```bash
-# Check pods
+# Check app pods
 kubectl get pods -n budget-app
 
 # Should show all Running:
-# flask-app-xxx    2/2   Running
+# flask-app-xxx    1/1   Running
 # nginx-xxx        1/1   Running
 # postgres-xxx     1/1   Running
 # prometheus-xxx   1/1   Running
 # grafana-xxx      1/1   Running
 
-# Check services
-kubectl get services -n budget-app
-
-# Test endpoint
-curl http://localhost:8889/api/health
+# Test endpoints
+curl http://localhost:8080/api/health
+curl -k https://localhost:8443  # ArgoCD UI
 ```
 
 ---
 
 ## 🚨 Troubleshooting Deployment
-
-### Docker Compose Issues
-
-**Port already in use:**
-```bash
-# Kill process on port 8887
-lsof -ti:8887 | xargs kill -9
-
-# Or use different port
-docker-compose down
-# Edit docker-compose.yml ports
-docker-compose up -d
-```
-
-**Database connection error:**
-```bash
-# Check postgres is running
-docker-compose ps postgres
-
-# Restart database
-docker-compose restart postgres
-
-# Check logs
-docker-compose logs postgres
-```
 
 ### K3d Issues
 
@@ -278,30 +234,25 @@ k3d image import devops-final-project-web:latest -c budget-cluster
 # Check service
 kubectl get svc nginx-service -n budget-app
 
+# Check ingress
+kubectl get ingress -A
+
 # Use port-forward as fallback
-kubectl port-forward svc/nginx-service 8889:80 -n budget-app
+kubectl port-forward svc/nginx-service 8080:80 -n budget-app
 ```
 
 **Cluster won't start:**
 ```bash
 # Delete and recreate
 k3d cluster delete budget-cluster
-k3d cluster create budget-cluster --port "8889:80@loadbalancer"
+k3d cluster create budget-cluster \
+  --port "8080:80@loadbalancer" \
+  --port "8443:443@loadbalancer"
 ```
 
 ---
 
 ## 📊 Monitoring Deployment
-
-### Docker Compose Monitoring
-```bash
-# Access Prometheus
-open http://localhost:9090
-
-# Access Grafana
-open http://localhost:3000
-# Login: admin / admin
-```
 
 ### K3d Monitoring
 ```bash
@@ -322,11 +273,11 @@ open http://localhost:3000  # Grafana (admin/admin)
 
 ### Development Cycle
 ```bash
-1. Make code changes
-2. Test locally with Docker Compose
-3. Commit and push (triggers CI)
-4. Wait for CI to pass ✅
-5. Test with K3d before demo/presentation
+1. Make code changes locally
+2. Commit and push (triggers CI/CD)
+3. GitHub Actions builds & updates manifest
+4. ArgoCD auto-deploys within 3 minutes
+5. Verify deployment in ArgoCD UI
 ```
 
 ### Branch Strategy
@@ -346,67 +297,61 @@ feature branches:
 ```bash
 # 1 day before
 1. Merge all features to main
-2. Verify CI passes
-3. Test full deployment on K3d
-4. Verify monitoring works
+2. Verify CI/CD pipeline passes
+3. Check ArgoCD shows "Synced" and "Healthy"
+4. Test all application features
+5. Verify monitoring works
 
 # 1 hour before
-1. Fresh K3d deployment
-2. Test all features
-3. Prepare demo data
-4. Keep cluster running
+1. Restart cluster if needed: python3 deploy.py
+2. Test Budget App: http://localhost:8080
+3. Check ArgoCD UI: https://localhost:8443
+4. Verify all pods are Running
+5. Prepare demo flow
 ```
 
 ---
 
-## 🚀 Future: Automated CD
+## 🚀 Production Deployment Options
 
-If you want to add automated CD in the future, options include:
+### Current Setup (Local K3d)
+✅ **Already implemented!** You have:
+- GitOps with ArgoCD
+- Automated CI/CD pipeline
+- Multi-platform Docker images
+- Security scanning
 
-### Option 1: Self-Hosted Runner
-```yaml
-# .github/workflows/cd.yml
-name: CD to Local K3d
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: self-hosted  # Your laptop
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to K3d
-        run: |
-          k3d cluster delete budget-cluster || true
-          k3d cluster create budget-cluster --port "8889:80@loadbalancer"
-          kubectl apply -f k8s/
-```
-
-**Requires:** GitHub Actions self-hosted runner installed on your machine
-
-### Option 2: Remote Kubernetes Cluster
-```yaml
-# Deploy to remote cluster (requires cloud provider)
-- name: Deploy to Remote K8s
-  run: |
-    kubectl config use-context remote-cluster
-    kubectl apply -f k8s/
-```
-
-**Requires:** Remote Kubernetes cluster (GKE, EKS, AKS, etc.)
-
-### Option 3: ArgoCD (GitOps)
+### Option 1: Cloud Kubernetes
 ```bash
-# Install ArgoCD on K3d
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# Deploy to GKE (Google Kubernetes Engine)
+gcloud container clusters create budget-cluster \
+  --num-nodes=3 --zone=us-central1-a
 
-# ArgoCD watches Git repo and auto-deploys
+# Or deploy to EKS (AWS)
+eksctl create cluster --name budget-cluster --region us-east-1
+
+# Or deploy to AKS (Azure)
+az aks create --resource-group myRG --name budget-cluster
 ```
 
-**Complexity:** High, but industry best practice
+**Then:**
+- Point ArgoCD to your cloud cluster
+- Same GitOps workflow continues to work!
+
+### Option 2: Cloud Run / App Engine
+```bash
+# Deploy as serverless
+gcloud run deploy budget-app \
+  --image ghcr.io/chenbracha/devops-final-project:latest \
+  --platform managed
+```
+
+### Option 3: Hybrid (Dev + Prod)
+- **Dev:** K3d (local) ← You're here
+- **Staging:** Cloud K8s cluster
+- **Prod:** Cloud K8s cluster with HA
+
+ArgoCD can manage all environments from Git!
 
 ---
 
@@ -421,22 +366,22 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 
 ## ❓ FAQ
 
-**Q: Why no automated CD?**  
-A: Both deployment targets (Docker Compose and K3d) run locally. CD typically deploys to remote servers.
+**Q: Is CD automated?**  
+A: Yes! ArgoCD automatically deploys changes from Git within 3 minutes.
 
-**Q: Should I use Docker Compose or K3d?**  
-A: Both! Docker Compose for quick dev, K3d for K8s testing and demos.
+**Q: How do I trigger a deployment?**  
+A: Just push to main branch. CI builds the image, updates the manifest, and ArgoCD deploys automatically.
 
-**Q: Can I run both simultaneously?**  
-A: Yes! They use different ports (8887 and 8889).
+**Q: Can I deploy to cloud?**  
+A: Yes! Point ArgoCD to a cloud K8s cluster. The same workflow works.
 
 **Q: How do I know if CI passed?**  
 A: Check the green checkmark next to your commit on GitHub.
 
-**Q: What if I want real automated CD?**  
-A: You'd need a remote environment (cloud VM, Kubernetes cluster, etc.).
+**Q: How do I rollback?**  
+A: Use ArgoCD UI or: `git revert <commit-hash> && git push`
 
 ---
 
-**Remember: CI is automated ✅ | CD is manual for local environments 📋**
+**Remember: Both CI and CD are fully automated! 🚀**
 
