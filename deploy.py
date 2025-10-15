@@ -274,6 +274,10 @@ def deploy_application():
         subprocess.run(['kubectl', 'rollout', 'restart', 'deployment', 'argocd-server', '-n', 'argocd'],
                       capture_output=True)
         
+        # Create ArgoCD Application for GitOps
+        print("🔄 Creating ArgoCD Application...")
+        run_command("kubectl apply -f argocd/application.yaml", "Creating ArgoCD Application", check=False)
+        
         print("✅ Application deployed")
     
     # Wait for application to sync
