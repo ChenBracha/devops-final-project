@@ -264,6 +264,7 @@ def deploy_application():
         run_command("kubectl apply -f k8s/postgres/", "Deploying PostgreSQL", check=False)
         run_command("kubectl apply -f k8s/flask-app/", "Deploying Flask app", check=False)
         run_command("kubectl apply -f k8s/nginx/", "Deploying Nginx", check=False)
+        run_command("kubectl apply -f k8s/monitoring/", "Deploying Prometheus & Grafana", check=False)
         run_command("kubectl apply -f k8s/ingress.yml", "Creating Ingress", check=False)
         
         # Configure ArgoCD for ingress
@@ -335,13 +336,13 @@ def setup_access():
     print("✅ DEPLOYMENT COMPLETE!")
     print("=" * 70)
     
-    print("\n📊 ACCESS YOUR SERVICES (NO COMMANDS NEEDED):")
+    print("\n📊 ACCESS YOUR SERVICES:")
     print()
-    print("1️⃣  Budget Application:")
+    print("1️⃣  Budget Application (NO PORT-FORWARD NEEDED!):")
     print("   🌐 Open in browser: http://localhost:8080")
     print("   ✓ Ready to use immediately!")
     print()
-    print("2️⃣  ArgoCD UI (GitOps Dashboard):")
+    print("2️⃣  ArgoCD UI (GitOps Dashboard - NO PORT-FORWARD NEEDED!):")
     print("   🌐 Open in browser: https://localhost:8443")
     print("   ⚠️  Accept the self-signed certificate warning")
     print("   Username: admin")
@@ -350,6 +351,17 @@ def setup_access():
     else:
         print("   Password: <run command below to get it>")
         print("   Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d")
+    print()
+    print("3️⃣  Prometheus (Metrics & Monitoring):")
+    print("   🔧 Run: kubectl port-forward -n budget-app svc/prometheus-service 9090:9090")
+    print("   🌐 Then open: http://localhost:9090")
+    print("   ✓ View metrics, queries, targets")
+    print()
+    print("4️⃣  Grafana (Dashboards & Visualization):")
+    print("   🔧 Run: kubectl port-forward -n budget-app svc/grafana-service 3000:3000")
+    print("   🌐 Then open: http://localhost:3000")
+    print("   Username: admin")
+    print("   Password: admin (change on first login)")
     print()
     
     print("🔍 USEFUL COMMANDS:")
